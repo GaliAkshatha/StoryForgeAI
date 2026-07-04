@@ -1,0 +1,13 @@
+{
+  "name": "storyforge-ai",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo Build coming soon",
+    "dev": "echo Development coming soon",
+    "lint": "echo Lint coming soon",
+    "test": "echo Test coming soon"
+  }
+}

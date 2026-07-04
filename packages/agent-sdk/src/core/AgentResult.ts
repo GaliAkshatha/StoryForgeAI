@@ -8,8 +8,8 @@ export interface AgentResult<T = unknown>
 
     logs: string[];
 
-    metrices: {
-        excutionTimeMs: number;
+    metrics: {
+        executionTimeMs: number;
         tokenUsage?: number;
     }
 }

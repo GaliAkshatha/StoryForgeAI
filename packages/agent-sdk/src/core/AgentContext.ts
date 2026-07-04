@@ -1,5 +1,5 @@
 export interface AgentContext {
-    projectId: String;
+    projectId: string;
     workflowRunId: string;
     executionId: string;
 

@@ -1,6 +1,7 @@
 export * from "./core/BaseAgent";
 export * from "./core/AgentContext";
 export * from "./core/AgentResult";
+export * from "./core/DemoAgent";
 
 export * from "./memory/MemoryClient";
 export * from "./memory/MemoryStore";

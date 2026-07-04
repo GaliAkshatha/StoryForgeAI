@@ -2,7 +2,7 @@ export interface WorkflowStep {
 
     id: string;
 
-    agent: string;
+    agentId: string;
 
     description?: string;
 

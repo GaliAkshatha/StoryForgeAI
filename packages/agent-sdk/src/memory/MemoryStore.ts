@@ -1,4 +1,3 @@
-// packages/agent-sdk/src/memory/MemoryStore.ts
 
 export class MemoryStore {
   private store = new Map<string, unknown>();

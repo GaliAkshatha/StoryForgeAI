@@ -8,3 +8,4 @@ export * from "./repository/createPromptRepository";
 export * from "./services/DefaultPromptManager";
 
 export * from "./templates/planner.prompt";
+export * from "./templates/requirement.prompt";

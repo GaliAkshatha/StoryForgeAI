@@ -81,8 +81,17 @@ async function main() {
                 moral:
                     "Honesty is the best policy.",
 
-                audience:
-                    "Children aged 8-10",
+                audience: {
+
+                    name: "Children",
+
+                    ageRange: "8-10",
+
+                    readingLevel: "Elementary",
+
+                    vocabularyLevel: "Simple"
+
+                },
 
                 genre:
                     "Fantasy"

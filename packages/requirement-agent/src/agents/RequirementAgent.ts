@@ -12,7 +12,7 @@ import { RequirementInput } from "../models/RequirementInput";
 import { RequirementOutput } from "../models/RequirementOutput";
 
 import { AIServices } from "../services/AIServices";
-import { StoryRequirements } from "../models/StoryRequirements";
+import { StoryRequirements } from "@storyforge/shared";
 
 const STORY_REQUIREMENTS_KEY = "storyRequirements";
 
@@ -81,6 +81,18 @@ export class RequirementAgent extends BaseAgent<
         if(!requirements.audience)
             throw new Error("Missing audience.");
 
+        if (!requirements.audience.name)
+            throw new Error("Missing audience.name.");
+
+        if (!requirements.audience.ageRange)
+            throw new Error("Missing audience.ageRange.");
+
+        if (!requirements.audience.readingLevel)
+            throw new Error("Missing audience.readingLevel.");
+
+        if (!requirements.audience.vocabularyLevel)
+            throw new Error("Missing audience.vocabularyLevel.");
+
         if(!requirements.moral)
             throw new Error("Missing moral.");
 
@@ -93,8 +105,8 @@ export class RequirementAgent extends BaseAgent<
         if(!requirements.storyLength)
             throw new Error("Missing storyLength.");
 
-        if(!requirements.readingLevel)
-            throw new Error("Missing readingLevel.");
+        if(!requirements.audience.readingLevel)
+            throw new Error("Missing audience.readingLevel.");
 
     }
 

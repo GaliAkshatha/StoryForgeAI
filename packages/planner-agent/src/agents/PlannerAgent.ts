@@ -5,7 +5,7 @@ import {
 } from "@storyforge/agent-sdk";
 
 import { PlannerInput } from "../models/PlannerInput";
-import { PlannerOutput } from "../models/PlannerOutput";
+import { StoryPlan } from "@storyforge/shared";
 
 import { AIServices } from "../services/AIServices";
 import {
@@ -16,7 +16,7 @@ const STORY_PLAN_KEY = "storyPlan";
 
 export class PlannerAgent extends BaseAgent<
     PlannerInput,
-    PlannerOutput
+    StoryPlan
 > {
 
     constructor(
@@ -28,13 +28,21 @@ export class PlannerAgent extends BaseAgent<
 
     protected async execute(
         context: AgentContext<PlannerInput>
-    ): Promise<PlannerOutput> {
+    ): Promise<StoryPlan> {
+
+        const audienceDescription =
+            `
+            Name: ${context.input.audience.name}
+            Age Range: ${context.input.audience.ageRange}
+            Reading Level: ${context.input.audience.readingLevel}
+            Vocabulary Level: ${context.input.audience.vocabularyLevel}
+            `;
 
         const prompt = this.ai.promptManager.compile(
             "planner",
             {
                 moral: context.input.moral,
-                audience: context.input.audience,
+                audience:  audienceDescription,
                 genre: context.input.genre
             }
         );
@@ -50,11 +58,11 @@ export class PlannerAgent extends BaseAgent<
 
         });
 
-        let plan: PlannerOutput;
+        let plan: StoryPlan;
         
         try {
 
-            plan = JsonParser.parse<PlannerOutput>(
+            plan = JsonParser.parse<StoryPlan>(
                 response.text
             );
 
@@ -79,7 +87,7 @@ export class PlannerAgent extends BaseAgent<
     }
 
     private validatePlan(
-        plan: PlannerOutput
+        plan: StoryPlan
     ): void {
 
         if (!plan.title)

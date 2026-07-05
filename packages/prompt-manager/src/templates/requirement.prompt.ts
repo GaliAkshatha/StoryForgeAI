@@ -24,7 +24,12 @@ Return EXACTLY this JSON:
 {
     "title": "",
     "genre": "",
-    "audience": "",
+    "audience": {
+        "name": "",
+        "ageRange": "",
+        "readingLevel": "",
+        "vocabularyLevel": ""
+    },
     "moral": "",
     "tone": "",
     "theme": "",

@@ -11,11 +11,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@storyforge/agent-sdk": "workspace:*"
+    "@storyforge/agent-sdk": "workspace:*",
+    "@storyforge/llm-client": "workspace:*",
+    "@storyforge/planner-agent": "workspace:*",
+    "@storyforge/prompt-manager": "workspace:*",
+    "@storyforge/requirement-agent": "workspace:*",
+    "@storyforge/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^26.1.0",
+    "@types/node": "^24.13.2",
+    "dotenv": "^17.4.2",
     "tsx": "^4.23.0",
-    "typescript": "^6.0.3"
+    "typescript": "^5.9.3"
   }
 }

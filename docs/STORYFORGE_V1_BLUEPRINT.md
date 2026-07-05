@@ -919,3 +919,567 @@ Commit.
 Repeat.
 
 END OF STORYFORGE V1 BLUEPRINT
+
+
+# StoryForge AI
+## Blueprint V1 (Frozen)
+
+Version: 1.0
+Status: Frozen
+Last Updated: July 2026
+
+---
+
+# 1. Vision
+
+StoryForge is a production-ready Multi-Agent AI Story Generation Platform.
+
+A user provides a simple natural language request.
+
+Example:
+
+"I want a funny fantasy story about a lonely dragon who learns sharing."
+
+StoryForge automatically:
+
+• Understands the request
+• Plans the story
+• Performs research
+• Writes the story
+• Reviews quality
+• Splits into scenes
+• Returns a polished story
+
+---
+
+# 2. Goals
+
+Build a production-quality AI system using:
+
+• TypeScript
+• pnpm Monorepo
+• Modular Packages
+• Multi-Agent Architecture
+• Google Gemini
+• PostgreSQL
+• React
+
+The system must be scalable, maintainable and interview-worthy.
+
+---
+
+# 3. Non Goals (V1)
+
+NOT included in V1:
+
+❌ Vector Database
+❌ RAG
+❌ Image Generation
+❌ Voice Generation
+❌ Multiple LLM Providers
+❌ Fine Tuning
+❌ Agent Parallel Execution
+
+These belong to V2.
+
+---
+
+# 4. Architecture Principles
+
+Principle 1
+
+One Package = One Responsibility
+
+Examples
+
+agent-sdk
+Only agent abstractions
+
+llm-client
+Only LLM communication
+
+prompt-manager
+Only prompts
+
+planner-agent
+Only planning
+
+Never mix responsibilities.
+
+---
+
+Principle 2
+
+Dependency Injection Everywhere
+
+Agents never create:
+
+LLM
+
+PromptManager
+
+Memory
+
+Everything is injected.
+
+---
+
+Principle 3
+
+Agents never know each other.
+
+RequirementAgent never imports PlannerAgent.
+
+PlannerAgent never imports StoryAgent.
+
+Only Workflow Engine orchestrates.
+
+---
+
+Principle 4
+
+Reusable Components
+
+Every reusable feature becomes its own package.
+
+Never duplicate logic.
+
+---
+
+# 5. Complete Workflow
+
+User
+
+↓
+
+RequirementAgent
+
+↓
+
+StoryRequirements
+
+↓
+
+PlannerAgent
+
+↓
+
+StoryPlan
+
+↓
+
+ResearchAgent
+
+↓
+
+ResearchPackage
+
+↓
+
+StoryAgent
+
+↓
+
+StoryDraft
+
+↓
+
+CriticAgent
+
+↓
+
+FinalStory
+
+↓
+
+SceneAgent
+
+↓
+
+StoryScenes
+
+---
+
+# 6. Package Structure
+
+packages/
+
+agent-sdk/
+
+workflow-engine/
+
+llm-client/
+
+prompt-manager/
+
+requirement-agent/
+
+planner-agent/
+
+research-agent/
+
+story-agent/
+
+critic-agent/
+
+scene-agent/
+
+shared/
+
+---
+
+# 7. Agent Structure
+
+Every agent MUST follow:
+
+src/
+
+agents/
+
+models/
+
+services/
+
+tests/
+
+index.ts
+
+No exceptions.
+
+---
+
+# 8. Agent Lifecycle
+
+Every agent executes:
+
+Receive Input
+
+↓
+
+Compile Prompt
+
+↓
+
+Call LLM
+
+↓
+
+Parse JSON
+
+↓
+
+Validate
+
+↓
+
+Store Memory
+
+↓
+
+Return Output
+
+---
+
+# 9. Memory Keys (Frozen)
+
+storyRequirements
+
+storyPlan
+
+researchPackage
+
+storyDraft
+
+finalStory
+
+storyScenes
+
+Never invent new keys unless approved.
+
+---
+
+# 10. Execution Memory
+
+Execution memory is temporary.
+
+Workflow Starts
+
+↓
+
+MemoryStore
+
+↓
+
+All Agents
+
+↓
+
+Workflow Ends
+
+↓
+
+Memory Destroyed
+
+Execution Memory is NOT PostgreSQL.
+
+---
+
+# 11. Persistent Storage
+
+Introduced after all agents.
+
+Database
+
+PostgreSQL
+
+Tables
+
+projects
+
+workflow_runs
+
+stories
+
+feedback
+
+prompt_versions
+
+agent_logs
+
+---
+
+# 12. Prompt Architecture
+
+Every prompt contains:
+
+Role
+
+Objective
+
+Input
+
+Output JSON
+
+Rules
+
+Examples (later)
+
+Return JSON Only
+
+Every prompt follows the same template.
+
+---
+
+# 13. LLM Architecture
+
+Agent
+
+↓
+
+PromptManager
+
+↓
+
+LLMClient Interface
+
+↓
+
+GeminiClient
+
+↓
+
+Google Gemini
+
+Never call Google SDK directly from agents.
+
+---
+
+# 14. Workflow Engine
+
+Workflow Engine responsibilities:
+
+• Create Memory
+
+• Create Agents
+
+• Execute Agents
+
+• Handle Failures
+
+• Collect Metrics
+
+• Return Final Result
+
+Application only calls:
+
+workflow.run()
+
+Never individual agents.
+
+---
+
+# 15. Logging
+
+Every agent logs:
+
+Started
+
+Completed
+
+Failed
+
+Execution Time
+
+No console.log except debugging.
+
+Use Logger.
+
+---
+
+# 16. Error Handling
+
+Every failure returns:
+
+success
+
+error
+
+logs
+
+metrics
+
+Workflow Engine decides:
+
+Retry
+
+Continue
+
+Stop
+
+---
+
+# 17. Coding Standards
+
+Use
+
+strict TypeScript
+
+Dependency Injection
+
+Interfaces
+
+Small Classes
+
+No God Objects
+
+No Circular Dependencies
+
+Meaningful Names
+
+---
+
+# 18. Definition of Done
+
+A task is complete only when:
+
+✓ Typecheck passes
+
+✓ Build passes
+
+✓ Integration Test passes
+
+✓ Prompt registered
+
+✓ Memory updated
+
+✓ Logging works
+
+✓ Blueprint updated
+
+✓ Git Commit created
+
+---
+
+# 19. Roadmap
+
+Phase 1
+
+✓ Monorepo
+
+✓ Agent SDK
+
+✓ Prompt Manager
+
+✓ LLM Client
+
+---
+
+Phase 2
+
+✓ RequirementAgent
+
+✓ PlannerAgent
+
+---
+
+Phase 3
+
+Workflow Engine
+
+---
+
+Phase 4
+
+ResearchAgent
+
+StoryAgent
+
+CriticAgent
+
+SceneAgent
+
+---
+
+Phase 5
+
+PostgreSQL
+
+REST API
+
+---
+
+Phase 6
+
+React
+
+Authentication
+
+Dashboard
+
+Story Editor
+
+---
+
+Phase 7
+
+Docker
+
+CI/CD
+
+Deployment
+
+---
+
+# 20. Frozen Rules
+
+No architecture redesign.
+
+No package responsibility changes.
+
+No new memory keys.
+
+No agent coupling.
+
+Only bug fixes and feature implementation.
+
+Blueprint Version = 1.0 (Frozen)

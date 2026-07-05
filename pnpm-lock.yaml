@@ -249,6 +249,9 @@ importers:
       '@storyforge/prompt-manager':
         specifier: workspace:*
         version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -286,6 +289,9 @@ importers:
       '@storyforge/prompt-manager':
         specifier: workspace:*
         version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
         specifier: ^24.0.0
@@ -300,21 +306,51 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  packages/shared:
+    devDependencies:
+      '@types/node':
+        specifier: ^24.13.2
+        version: 24.13.2
+      tsx:
+        specifier: ^4.23.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/workflow-engine:
     dependencies:
       '@storyforge/agent-sdk':
         specifier: workspace:*
         version: link:../agent-sdk
+      '@storyforge/llm-client':
+        specifier: workspace:*
+        version: link:../llm-client
+      '@storyforge/planner-agent':
+        specifier: workspace:*
+        version: link:../planner-agent
+      '@storyforge/prompt-manager':
+        specifier: workspace:*
+        version: link:../prompt-manager
+      '@storyforge/requirement-agent':
+        specifier: workspace:*
+        version: link:../requirement-agent
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@types/node':
-        specifier: ^26.1.0
-        version: 26.1.0
+        specifier: ^24.13.2
+        version: 24.13.2
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       tsx:
         specifier: ^4.23.0
         version: 4.23.0
       typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
 
@@ -932,7 +968,7 @@ snapshots:
       '@protobufjs/path': 1.1.2
       '@protobufjs/pool': 1.1.0
       '@protobufjs/utf8': 1.1.1
-      '@types/node': 26.1.0
+      '@types/node': 24.13.2
       long: 5.3.2
 
   retry@0.13.1: {}

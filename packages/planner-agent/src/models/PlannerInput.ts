@@ -1,9 +1,11 @@
+import { AudienceProfile } from "@storyforge/shared";
+
 export interface PlannerInput {
 
-    moral: string;
-
-    audience: string;
-
     genre: string;
+
+    audience: AudienceProfile;
+
+    moral: string;
 
 }

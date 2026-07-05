@@ -1,10 +1,12 @@
+import { AudienceProfile } from "./AudienceProfile";
+
 export interface StoryRequirements {
 
     title?: string;
 
     genre: string;
 
-    audience: string;
+    audience: AudienceProfile;
 
     moral: string;
 
@@ -13,7 +15,5 @@ export interface StoryRequirements {
     theme: string;
 
     storyLength: string;
-
-    readingLevel: string;
 
 }

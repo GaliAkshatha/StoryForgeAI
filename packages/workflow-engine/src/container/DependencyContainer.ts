@@ -1,0 +1,99 @@
+import {
+    MemoryStore,
+    MemoryClient
+} from "@storyforge/agent-sdk";
+
+import {
+    GeminiClient
+} from "@storyforge/llm-client";
+
+import {
+    DefaultPromptManager,
+    createPromptRepository
+} from "@storyforge/prompt-manager";
+
+import {
+    RequirementAgent
+} from "@storyforge/requirement-agent";
+
+import {
+    PlannerAgent
+} from "@storyforge/planner-agent";
+
+export class DependencyContainer {
+
+    readonly memoryStore: MemoryStore;
+
+    readonly memory: MemoryClient;
+
+    readonly llm: GeminiClient;
+
+    readonly promptManager: DefaultPromptManager;
+
+    readonly requirementAgent: RequirementAgent;
+
+    readonly plannerAgent: PlannerAgent;
+
+    constructor(
+
+        apiKey: string,
+
+        model: string
+
+    ){
+
+        this.memoryStore =
+            new MemoryStore();
+
+        this.memory =
+            new MemoryClient(
+                this.memoryStore
+            );
+
+        this.promptManager =
+            new DefaultPromptManager(
+
+                createPromptRepository()
+
+            );
+
+        this.llm =
+            new GeminiClient({
+
+                apiKey,
+
+                model
+
+            });
+
+        const ai = {
+
+            llmClient:
+                this.llm,
+
+            promptManager:
+                this.promptManager
+
+        };
+
+        this.requirementAgent =
+            new RequirementAgent(
+
+                this.memory,
+
+                ai
+
+            );
+
+        this.plannerAgent =
+            new PlannerAgent(
+
+                this.memory,
+
+                ai
+
+            );
+
+    }
+
+}

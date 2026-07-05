@@ -14,6 +14,7 @@
     "@storyforge/agent-sdk": "workspace:*",
     "@storyforge/llm-client": "workspace:*",
     "@storyforge/prompt-manager": "workspace:*",
+    "@storyforge/shared": "workspace:*",
     "dotenv": "^17.4.2"
   },
   "devDependencies": {

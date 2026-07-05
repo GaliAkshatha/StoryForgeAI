@@ -33,7 +33,12 @@ Return EXACTLY this JSON.
 {
     "title": "",
     "genre": "",
-    "targetAudience": "",
+    "targetAudience": {
+        "name":"",
+        "ageRange": "",
+        "readingLevel": "",
+        "vocabularyLevel": ""
+    },
     "tone": "",
     "moral": "",
     "theme": "",

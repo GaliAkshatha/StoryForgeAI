@@ -3,6 +3,8 @@ packages:
   - "packages/*"
   - "services/*"
 allowBuilds:
+  '@google/genai': true
   esbuild: true
+  protobufjs: false
 minimumReleaseAgeExclude:
   - tsx@4.23.0

@@ -17,7 +17,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
 
     
     async run(
-        context: AgentContext
+        context: AgentContext<TInput>
     ): Promise<AgentResult<TOutput>> {
         this.logger.clear();
 
@@ -89,7 +89,7 @@ export abstract class BaseAgent<TInput = unknown, TOutput = unknown> {
     }
 
     protected abstract execute(
-        context: AgentContext
+        context: AgentContext<TInput>
     ): Promise<TOutput>;
 
 }

@@ -1,4 +1,14 @@
-export const PlannerPrompt = `
+import { PromptTemplate } from "../models/PromptTemplate";
+
+export const PlannerPrompt: PromptTemplate = {
+
+    id: "planner",
+
+    version: "1.0.0",
+
+    description: "Creates a structured story plan.",
+
+    template: `
 You are StoryForge AI's Planner Agent.
 
 Your responsibility is ONLY to create a story plan.
@@ -7,7 +17,7 @@ Do NOT write the complete story.
 
 Return ONLY valid JSON.
 
-User Requirements
+Story Requirements
 
 Moral:
 {{moral}}
@@ -18,9 +28,7 @@ Genre:
 Audience:
 {{audience}}
 
-Generate a structured story plan.
-
-Return EXACTLY this JSON format.
+Return EXACTLY this JSON.
 
 {
     "title": "",
@@ -49,10 +57,7 @@ Return EXACTLY this JSON format.
     ]
 }
 
-Rules:
+Return ONLY JSON.
+`
 
-- Return ONLY JSON.
-- No markdown.
-- No explanations.
-- No additional text.
-`;
+};

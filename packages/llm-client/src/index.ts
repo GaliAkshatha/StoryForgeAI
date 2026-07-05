@@ -8,3 +8,4 @@ export * from "./config/LLMConfig";
 export * from "./errors/LLMError";
 
 export * from "./clients/GeminiClient";
+export * from "./utils/JsonParser";

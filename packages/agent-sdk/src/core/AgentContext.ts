@@ -1,11 +1,14 @@
-export interface AgentContext {
+export interface AgentContext<TInput = unknown> {
+
     projectId: string;
+
     workflowRunId: string;
+
     executionId: string;
 
     agentName: string;
 
-    input: unknown;
+    input: TInput;
 
     sharedMemory: Record<string, unknown>;
 
@@ -15,4 +18,5 @@ export interface AgentContext {
         startedAt: Date;
         retryCount: number;
     };
+
 }

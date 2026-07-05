@@ -1,25 +1,24 @@
 {
-  "name": "@storyforge/llm-client",
+  "name": "@storyforge/planner-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@storyforge/agent-sdk": "workspace:*",
+    "@storyforge/llm-client": "workspace:*",
+    "@storyforge/prompt-manager": "workspace:*",
+    "dotenv": "^17.4.2"
+  },
   "devDependencies": {
     "@types/node": "^26.1.0",
     "tsx": "^4.23.0",
     "typescript": "^6.0.3"
-  },
-  "dependencies": {
-    "@google/genai": "^2.10.0",
-    "dotenv": "^17.4.2"
   }
 }

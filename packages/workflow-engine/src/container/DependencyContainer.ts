@@ -20,6 +20,18 @@ import {
     PlannerAgent
 } from "@storyforge/planner-agent";
 
+import {
+    ResearchAgent
+} from "@storyforge/research-agent";
+
+import {
+    StoryAgent
+} from "@storyforge/story-agent";
+
+import {
+    CriticAgent
+} from "@storyforge/critic-agent";
+
 export class DependencyContainer {
 
     readonly memoryStore: MemoryStore;
@@ -33,6 +45,12 @@ export class DependencyContainer {
     readonly requirementAgent: RequirementAgent;
 
     readonly plannerAgent: PlannerAgent;
+
+    readonly researchAgent: ResearchAgent;
+
+    readonly storyAgent: StoryAgent;
+
+    readonly criticAgent: CriticAgent;
 
     constructor(
 
@@ -94,6 +112,33 @@ export class DependencyContainer {
 
             );
 
-    }
+        this.researchAgent =
+            new ResearchAgent(
 
+            this.memory,
+
+            ai
+
+        );
+
+        this.storyAgent =
+            new StoryAgent(
+
+                this.memory,
+
+                ai
+
+            );
+        
+
+        this.criticAgent =
+            new CriticAgent(
+
+                this.memory,
+
+                ai
+
+            );
+
+    }
 }

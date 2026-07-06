@@ -16,7 +16,10 @@
     "@storyforge/planner-agent": "workspace:*",
     "@storyforge/prompt-manager": "workspace:*",
     "@storyforge/requirement-agent": "workspace:*",
-    "@storyforge/shared": "workspace:*"
+    "@storyforge/shared": "workspace:*",
+    "@storyforge/research-agent": "workspace:*",
+    "@storyforge/story-agent": "workspace:*",
+    "@storyforge/critic-agent":"workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

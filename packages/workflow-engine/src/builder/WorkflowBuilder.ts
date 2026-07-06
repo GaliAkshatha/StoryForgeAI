@@ -28,7 +28,13 @@ export class WorkflowBuilder {
 
             container.requirementAgent,
 
-            container.plannerAgent
+            container.plannerAgent,
+
+            container.researchAgent,
+
+            container.storyAgent,
+
+            container.criticAgent
 
         );
 

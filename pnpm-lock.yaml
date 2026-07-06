@@ -219,6 +219,34 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3
 
+  packages/critic-agent:
+    dependencies:
+      '@storyforge/agent-sdk':
+        specifier: workspace:*
+        version: link:../agent-sdk
+      '@storyforge/llm-client':
+        specifier: workspace:*
+        version: link:../llm-client
+      '@storyforge/prompt-manager':
+        specifier: workspace:*
+        version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.2
+      dotenv:
+        specifier: ^17.0.0
+        version: 17.4.2
+      tsx:
+        specifier: ^4.0.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   packages/llm-client:
     dependencies:
       '@google/genai':
@@ -306,6 +334,34 @@ importers:
         specifier: ^5.9.0
         version: 5.9.3
 
+  packages/research-agent:
+    dependencies:
+      '@storyforge/agent-sdk':
+        specifier: workspace:*
+        version: link:../agent-sdk
+      '@storyforge/llm-client':
+        specifier: workspace:*
+        version: link:../llm-client
+      '@storyforge/prompt-manager':
+        specifier: workspace:*
+        version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.2
+      dotenv:
+        specifier: ^17.0.0
+        version: 17.4.2
+      tsx:
+        specifier: ^4.0.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   packages/shared:
     devDependencies:
       '@types/node':
@@ -318,11 +374,42 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/story-agent:
+    dependencies:
+      '@storyforge/agent-sdk':
+        specifier: workspace:*
+        version: link:../agent-sdk
+      '@storyforge/llm-client':
+        specifier: workspace:*
+        version: link:../llm-client
+      '@storyforge/prompt-manager':
+        specifier: workspace:*
+        version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: ^24.0.0
+        version: 24.13.2
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
+      tsx:
+        specifier: ^4.0.0
+        version: 4.23.0
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+
   packages/workflow-engine:
     dependencies:
       '@storyforge/agent-sdk':
         specifier: workspace:*
         version: link:../agent-sdk
+      '@storyforge/critic-agent':
+        specifier: workspace:*
+        version: link:../critic-agent
       '@storyforge/llm-client':
         specifier: workspace:*
         version: link:../llm-client
@@ -335,9 +422,15 @@ importers:
       '@storyforge/requirement-agent':
         specifier: workspace:*
         version: link:../requirement-agent
+      '@storyforge/research-agent':
+        specifier: workspace:*
+        version: link:../research-agent
       '@storyforge/shared':
         specifier: workspace:*
         version: link:../shared
+      '@storyforge/story-agent':
+        specifier: workspace:*
+        version: link:../story-agent
     devDependencies:
       '@types/node':
         specifier: ^24.13.2

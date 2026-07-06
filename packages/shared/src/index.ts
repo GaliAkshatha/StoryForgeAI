@@ -11,3 +11,8 @@ export * from "./models/Character";
 export * from "./models/StoryBeat";
 export * from "./models/Scene";
 export * from "./models/ResearchPackage";
+export * from "./models/WorkflowContext";
+export * from "./models/StoryCritique";
+export * from "./models/Story";
+
+export * from "./models/common/CategoryScores";

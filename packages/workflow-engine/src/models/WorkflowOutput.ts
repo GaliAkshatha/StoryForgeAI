@@ -1,8 +1,13 @@
+import { WorkflowContext } from "@storyforge/shared";
+import { StoryDraft } from "@storyforge/shared";
+
 export interface WorkflowOutput {
 
     success: boolean;
 
-    story?: unknown;
+    workflowContext?: WorkflowContext;
+
+    story?: StoryDraft;
 
     error?: string;
 

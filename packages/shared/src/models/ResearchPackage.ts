@@ -1,9 +1,17 @@
 export interface ResearchPackage {
 
-    facts: string[];
+    writingGuidelines: string[];
 
-    references: string[];
+    worldBuildingIdeas: string[];
 
-    notes: string[];
+    characterDevelopmentIdeas: string[];
+
+    conflictSuggestions: string[];
+
+    educationalOpportunities: string[];
+
+    vocabularyGuidelines: string[];
+
+    inspirations: string[];
 
 }

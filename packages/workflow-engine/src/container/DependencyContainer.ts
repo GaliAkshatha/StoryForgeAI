@@ -4,7 +4,9 @@ import {
 } from "@storyforge/agent-sdk";
 
 import {
-    GeminiClient
+
+    OllamaClient
+
 } from "@storyforge/llm-client";
 
 import {
@@ -38,7 +40,7 @@ export class DependencyContainer {
 
     readonly memory: MemoryClient;
 
-    readonly llm: GeminiClient;
+    readonly llm: OllamaClient;
 
     readonly promptManager: DefaultPromptManager;
 
@@ -76,7 +78,7 @@ export class DependencyContainer {
             );
 
         this.llm =
-            new GeminiClient({
+            new OllamaClient({
 
                 apiKey,
 

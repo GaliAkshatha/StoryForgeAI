@@ -35,6 +35,13 @@ Characters:
 Story Beats:
 {{storyBeats}}
 
+Grounding Knowledge (retrieved from the knowledge base; may say "none available"):
+{{knowledgeContext}}
+
+Use the Grounding Knowledge where it is genuinely relevant to keep
+your guidance factually and thematically grounded. Do not force it in
+where it doesn't fit the plan.
+
 Return JSON only.
 
 Schema:

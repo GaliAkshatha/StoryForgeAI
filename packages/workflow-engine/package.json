@@ -19,7 +19,11 @@
     "@storyforge/shared": "workspace:*",
     "@storyforge/research-agent": "workspace:*",
     "@storyforge/story-agent": "workspace:*",
-    "@storyforge/critic-agent":"workspace:*"
+    "@storyforge/critic-agent":"workspace:*",
+    "@storyforge/knowledge-engine": "workspace:*",
+    "@storyforge/simulation-engine": "workspace:*",
+    "@storyforge/reflection-agent": "workspace:*",
+    "@storyforge/analytics-agent": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

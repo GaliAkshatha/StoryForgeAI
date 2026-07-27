@@ -1,0 +1,125 @@
+// StoryForge Prisma schema. Models here mirror the domain models in
+// packages/identity, packages/parent, packages/child, and
+// packages/learning exactly -- this file has no business logic of
+// its own, it only describes how those domain shapes are persisted.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Identity domain -------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  // bcrypt hash string (embeds its own salt + cost factor -- no
+  // separate passwordSalt column needed, unlike v1's scrypt hasher).
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@map("users")
+}
+
+// --- Parent domain -----------------------------------------------
+
+model ParentProfile {
+  id                       String   @id @default(uuid())
+  userId                   String   @unique
+  displayName              String
+  childIds                 String[] @default([])
+  weeklyReportEmailEnabled Boolean  @default(true)
+  dailyPlayLimitMinutes    Int      @default(30)
+  createdAt                DateTime @default(now())
+
+  @@map("parent_profiles")
+}
+
+// --- Child domain --------------------------------------------------
+
+model ChildProfile {
+  id                String   @id @default(uuid())
+  parentId          String
+  name              String
+  ageRange          String
+  readingLevel      String
+  vocabularyLevel   String
+  avatarId          String
+  aboutChild        String?
+  adventureWorldIds String[] @default([])
+  createdAt         DateTime @default(now())
+
+  @@index([parentId])
+  @@map("child_profiles")
+}
+
+// --- Simulation domain: persistent World State (v2.0) ---------------
+//
+// One row per adventure. inventory/relationships/quests/economy/flags
+// are stored as Json to mirror the WorldState domain model in
+// simulation-engine exactly -- this table has no shape of its own
+// beyond what that model already defines.
+
+model WorldStateRecord {
+  worldId           String   @id
+  childId           String
+  turn              Int
+  location          String
+  inventory         Json
+  relationships     Json
+  quests            Json
+  economy           Json
+  flags             Json
+  moral             String   @default("")
+  domain            String   @default("")
+  currentNarrative  String   @default("")
+  currentChoices    Json     @default("[]")
+  updatedAt         DateTime
+
+  @@index([childId])
+  @@map("world_states")
+}
+
+// One row per adventure turn -- the durable transcript that used to
+// live only in AdventureRuntime's in-memory Map.
+
+model StoryTurnRecord {
+  id                   String   @id @default(uuid())
+  worldId              String
+  sessionId            String
+  childId              String
+  situationText        String
+  decisionText         String
+  consequenceNarrative String
+  reflectionQuestion   String
+  learningSignals      String[] @default([])
+  createdAt            DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([worldId])
+  @@map("story_turns")
+}
+// --- Learning domain -----------------------------------------------
+//
+// One row per Analytics Agent run (one per adventure turn). The
+// Learning domain's WeeklyReport is computed on read by aggregating
+// these rows -- this table is the raw, append-only observation log,
+// never edited after insert.
+
+model LearningAnalyticsRecord {
+  id            String   @id @default(uuid())
+  sessionId     String
+  childId       String
+  // SkillSignal[] -- { skill, observation, delta }[]
+  skillSignals  Json
+  behaviorNotes String[]
+  summary       String
+  generatedAt   DateTime
+
+  @@index([childId, generatedAt])
+  @@map("learning_analytics_records")
+}

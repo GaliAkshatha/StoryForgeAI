@@ -37,6 +37,14 @@ export class ResearchAgent extends BaseAgent<
         const plan =
             context.input.plan;
 
+        const knowledgeContext =
+            this.ai.knowledgeBase
+                ? await this.ai.knowledgeBase.queryAsContext(
+                    `${plan.genre} ${plan.theme} ${plan.setting}`,
+                    { topK: 5 }
+                )
+                : "none available";
+
         const prompt =
             this.ai.promptManager.compile(
                 "research",
@@ -73,7 +81,9 @@ export class ResearchAgent extends BaseAgent<
                             plan.storyBeats,
                             null,
                             2
-                        )
+                        ),
+
+                    knowledgeContext
 
                 }
             );

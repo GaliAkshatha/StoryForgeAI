@@ -15,3 +15,8 @@ export * from "./models/WorkflowContext";
 export * from "./models/StoryCritique";
 
 export * from "./models/common/CategoryScores";
+
+// Learning Platform
+
+export * from "./models/Reflection";
+export * from "./models/LearningAnalytics";

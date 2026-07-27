@@ -12,7 +12,8 @@
     "@storyforge/agent-sdk": "workspace:*",
     "@storyforge/llm-client": "workspace:*",
     "@storyforge/prompt-manager": "workspace:*",
-    "@storyforge/shared": "workspace:*"
+    "@storyforge/shared": "workspace:*",
+    "@storyforge/knowledge-engine": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

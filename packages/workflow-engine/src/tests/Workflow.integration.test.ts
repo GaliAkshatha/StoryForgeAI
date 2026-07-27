@@ -16,9 +16,11 @@ async function main() {
     const runtime =
         WorkflowBuilder.create({
 
-            apiKey: process.env.GEMINI_API_KEY!,
+            provider: "gemini",
 
-            model: process.env.GEMINI_MODEL!
+            geminiApiKey: process.env.GEMINI_API_KEY!,
+
+            geminiModel: process.env.GEMINI_MODEL
 
         });
 

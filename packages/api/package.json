@@ -1,0 +1,33 @@
+{
+  "name": "@storyforge/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@storyforge/identity": "workspace:*",
+    "@storyforge/parent": "workspace:*",
+    "@storyforge/child": "workspace:*",
+    "@storyforge/learning": "workspace:*",
+    "@storyforge/database": "workspace:*",
+    "@storyforge/simulation-engine": "workspace:*",
+    "@storyforge/workflow-engine": "workspace:*",
+    "@storyforge/shared": "workspace:*",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^26.1.0",
+    "tsx": "^4.23.0",
+    "typescript": "^6.0.3"
+  }
+}

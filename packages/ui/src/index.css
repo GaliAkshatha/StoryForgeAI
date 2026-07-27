@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+    height: 100%;
+}
+
+body {
+    @apply bg-night text-parchment font-body;
+    background-image:
+        radial-gradient(circle at 20% 20%, rgba(78, 217, 197, 0.08), transparent 40%),
+        radial-gradient(circle at 80% 0%, rgba(255, 180, 84, 0.10), transparent 45%);
+}
+
+/* Visible keyboard focus everywhere -- fantasy theme, accessible
+   theme. Never remove focus outlines, only restyle them. */
+:focus-visible {
+    outline: 2px solid theme("colors.ember");
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.parchment-panel {
+    background:
+        linear-gradient(160deg, rgba(240, 223, 180, 0.06), rgba(240, 223, 180, 0.02)),
+        theme("colors.twilight");
+    border: 1px solid rgba(240, 223, 180, 0.15);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

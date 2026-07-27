@@ -5,6 +5,12 @@ import { RequirementPrompt } from "../templates/requirement.prompt";
 import { ResearchPrompt } from "../templates/research.prompt";
 import { StoryPrompt } from "../templates/story.prompt";
 import { CriticPrompt } from "../templates/critic.prompt";
+import { ReflectionPrompt } from "../templates/reflection.prompt";
+import { AnalyticsPrompt } from "../templates/analytics.prompt";
+import { ConsequencePrompt } from "../templates/consequence.prompt";
+import { OpeningPrompt } from "../templates/opening.prompt";
+import { LearningGoalPrompt } from "../templates/learning-goal.prompt";
+import { LearningSummaryPrompt } from "../templates/learning-summary.prompt";
 
 export function createPromptRepository(): PromptRepository {
 
@@ -29,6 +35,31 @@ export function createPromptRepository(): PromptRepository {
     repository.register(
         CriticPrompt
     );
+
+    repository.register(
+        ReflectionPrompt
+    );
+
+    repository.register(
+        AnalyticsPrompt
+    );
+
+    repository.register(
+        ConsequencePrompt
+    );
+
+    repository.register(
+        OpeningPrompt
+    );
+
+    repository.register(
+        LearningGoalPrompt
+    );
+
+    repository.register(
+        LearningSummaryPrompt
+    );
+
     return repository;
 
 }

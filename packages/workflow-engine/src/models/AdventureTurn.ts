@@ -38,6 +38,8 @@ export interface StartAdventureOutput {
 
     choices: Choice[];
 
+    isEnding: boolean;
+
     emotionalTone: string;
 
 }
@@ -72,6 +74,11 @@ export interface AdventureTurnOutput {
 
     choices: Choice[];
 
+    // v3: the Story Graph can genuinely end. When true, choices is
+    // empty and this is a terminal node -- the frontend should show
+    // an ending screen, not an empty choice grid.
+    isEnding: boolean;
+
     // Not in the Master Prompt's minimal AI Output Format, but kept
     // as a small enrichment the frontend can optionally use (e.g. to
     // theme the scene's animation/color) -- purely additive.
@@ -84,12 +91,14 @@ export interface AdventureTurnOutput {
 
     // Additional agent output beyond the Master Prompt's minimal AI
     // Output Format -- kept because the Reflection and Analytics
-    // Agents are mandatory per-turn collaborators (Master Prompt
-    // point 12: "Do NOT remove... instead improve their
-    // collaboration"), not because the frontend is required to
-    // render them.
-    reflection: Reflection;
+    // Agents are mandatory collaborators (Master Prompt point 12:
+    // "Do NOT remove... instead improve their collaboration"), not
+    // because the frontend is required to render them. v3: only
+    // populated on the turn that concludes a chapter (isEnding ===
+    // true) -- most turns leave these undefined, since Reflection
+    // and Analytics no longer run every turn (Part 3/4).
+    reflection?: Reflection;
 
-    analytics: LearningAnalytics;
+    analytics?: LearningAnalytics;
 
 }

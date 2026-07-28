@@ -129,7 +129,14 @@ export function adventureRoutes(app: AppContainer): Router {
 
             });
 
-            await app.learning.recordSession(result.analytics);
+            // v3: analytics is only populated on the turn that
+            // concludes a chapter (Part 3/4) -- most turns have
+            // nothing new to record here.
+            if (result.analytics) {
+
+                await app.learning.recordSession(result.analytics);
+
+            }
 
             // The frontend is only expected to render narrative +
             // choices (+ optional emotionalTone); worldUpdate and
@@ -147,6 +154,81 @@ export function adventureRoutes(app: AppContainer): Router {
             });
 
         }
+
+    });
+
+    router.get("/:worldId/state", async (req: AuthenticatedRequest, res) => {
+
+        const worldState = await app.ai.worldStateStore.get(String(req.params.worldId));
+
+        if (!worldState) {
+
+            res.status(404).json({ error: "Adventure not found." });
+
+            return;
+
+        }
+
+        const child = await app.children.getProfile(worldState.childId);
+
+        if (!child || child.parentId !== req.parentId) {
+
+            res.status(404).json({ error: "Adventure not found." });
+
+            return;
+
+        }
+
+        // Part 14: "Save at every node. Resume instantly." WorldState
+        // already persists the exact node the child is on after
+        // every turn -- resuming is just reading it back, no new AI
+        // call needed.
+        res.json({
+
+            worldId: worldState.worldId,
+
+            narrative: worldState.currentNarrative,
+
+            choices: worldState.currentChoices,
+
+            turn: worldState.turn
+
+        });
+
+    });
+
+    router.get("/:worldId/history", async (req: AuthenticatedRequest, res) => {
+
+        const worldState = await app.ai.worldStateStore.get(String(req.params.worldId));
+
+        if (!worldState) {
+
+            res.status(404).json({ error: "Adventure not found." });
+
+            return;
+
+        }
+
+        const child = await app.children.getProfile(worldState.childId);
+
+        if (!child || child.parentId !== req.parentId) {
+
+            res.status(404).json({ error: "Adventure not found." });
+
+            return;
+
+        }
+
+        // Part 14: "Show branching timeline." The full turn-by-turn
+        // transcript already persisted by AdventureRuntime -- this is
+        // the replay/timeline view over it.
+        const sessionId = req.query.sessionId as string | undefined;
+
+        const turns = sessionId
+            ? await app.ai.storyTurnRepository.findBySessionId(sessionId)
+            : await app.ai.storyTurnRepository.findByWorldId(String(req.params.worldId));
+
+        res.json({ turns });
 
     });
 

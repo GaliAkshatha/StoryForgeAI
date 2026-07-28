@@ -20,3 +20,8 @@ export * from "./models/common/CategoryScores";
 
 export * from "./models/Reflection";
 export * from "./models/LearningAnalytics";
+
+// v3: Story Graph / Deterministic Analytics shared vocabulary
+
+export * from "./models/AdventureEventType";
+export * from "./models/TraitName";

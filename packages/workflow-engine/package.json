@@ -22,6 +22,8 @@
     "@storyforge/critic-agent":"workspace:*",
     "@storyforge/knowledge-engine": "workspace:*",
     "@storyforge/simulation-engine": "workspace:*",
+    "@storyforge/story-graph": "workspace:*",
+    "@storyforge/learning": "workspace:*",
     "@storyforge/reflection-agent": "workspace:*",
     "@storyforge/analytics-agent": "workspace:*"
   },

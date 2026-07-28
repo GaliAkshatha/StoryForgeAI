@@ -4,7 +4,7 @@ import {
     MemoryClient
 } from "@storyforge/agent-sdk";
 
-import { LearningAnalytics, SkillSignal } from "@storyforge/shared";
+import { LearningAnalytics } from "@storyforge/shared";
 
 import { JsonParser } from "@storyforge/llm-client";
 
@@ -13,15 +13,13 @@ import { AIServices } from "../services/AIServices";
 
 const ANALYTICS_KEY = "learningAnalytics";
 
-// The LLM-authored shape -- deliberately narrower than the public
-// LearningAnalytics model. sessionId/childId/generatedAt are facts
-// owned by the platform, not the LLM, so they are attached
-// afterwards rather than trusted from the model's output.
+// v3: the LLM is only ever asked for a summary sentence -- the
+// skillSignals/behaviorNotes it used to invent now arrive
+// pre-computed on the input (see AnalyticsInput). This is the same
+// class, same package, same place in the pipeline as before; only
+// its responsibility narrowed, per Part 4's "Gemini only writes
+// explanations."
 interface AnalyticsLLMOutput {
-
-    skillSignals: SkillSignal[];
-
-    behaviorNotes: string[];
 
     summary: string;
 
@@ -43,35 +41,33 @@ export class AnalyticsAgent extends BaseAgent<
         context: AgentContext<AnalyticsInput>
     ): Promise<LearningAnalytics> {
 
-        if (context.input.events.length === 0) {
+        if (context.input.skillSignals.length === 0 && context.input.behaviorNotes.length === 0) {
 
             throw new Error(
-                "AnalyticsAgent: at least one session event is required."
+                "AnalyticsAgent: at least one skill signal or behavior note is required."
             );
 
         }
 
-        const sessionEvents = context.input.events
+        const skillSignalsText = context.input.skillSignals
 
-            .map((event, index) =>
-                `Event ${index + 1}:\n` +
-                `Situation: ${event.situation}\n` +
-                `Decision: ${event.decisionText}\n` +
-                `Consequence: ${event.consequenceNarrative}` +
-                (event.reflectionQuestion
-                    ? `\nReflection Question Asked: ${event.reflectionQuestion}`
-                    : "") +
-                (event.learningSignals && event.learningSignals.length > 0
-                    ? `\nSignals Noted By Narrator: ${event.learningSignals.join(", ")}`
-                    : "")
+            .map(signal =>
+                `- ${signal.skill}: delta ${signal.delta.toFixed(2)} -- ${signal.observation}`
             )
 
-            .join("\n\n");
+            .join("\n") || "(none)";
+
+        const behaviorNotesText = context.input.behaviorNotes
+
+            .map(note => `- ${note}`)
+
+            .join("\n") || "(none)";
 
         const prompt = this.ai.promptManager.compile(
             "analytics",
             {
-                sessionEvents
+                skillSignalsText,
+                behaviorNotesText
             }
         );
 
@@ -100,7 +96,11 @@ export class AnalyticsAgent extends BaseAgent<
 
         }
 
-        this.validateLLMOutput(llmOutput);
+        if (!llmOutput.summary) {
+
+            throw new Error("Analytics output missing summary.");
+
+        }
 
         const analytics: LearningAnalytics = {
 
@@ -108,9 +108,9 @@ export class AnalyticsAgent extends BaseAgent<
 
             childId: context.input.childId,
 
-            skillSignals: llmOutput.skillSignals,
+            skillSignals: context.input.skillSignals,
 
-            behaviorNotes: llmOutput.behaviorNotes,
+            behaviorNotes: context.input.behaviorNotes,
 
             summary: llmOutput.summary,
 
@@ -124,40 +124,6 @@ export class AnalyticsAgent extends BaseAgent<
         );
 
         return analytics;
-
-    }
-
-    private validateLLMOutput(
-        output: AnalyticsLLMOutput
-    ): void {
-
-        if (!Array.isArray(output.skillSignals)) {
-            throw new Error("Analytics output missing skillSignals.");
-        }
-
-        for (const signal of output.skillSignals) {
-
-            if (
-                typeof signal.delta !== "number" ||
-                signal.delta < -1 ||
-                signal.delta > 1
-            ) {
-
-                throw new Error(
-                    `Analytics output has an out-of-range delta for skill '${signal.skill}'.`
-                );
-
-            }
-
-        }
-
-        if (!Array.isArray(output.behaviorNotes)) {
-            throw new Error("Analytics output missing behaviorNotes.");
-        }
-
-        if (!output.summary) {
-            throw new Error("Analytics output missing summary.");
-        }
 
     }
 

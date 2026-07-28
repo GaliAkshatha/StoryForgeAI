@@ -95,6 +95,18 @@ export interface WorldState {
 
     currentChoices: Choice[];
 
+    // v3: which pre-generated Adventure (Story Graph) this
+    // playthrough is walking, and which StoryNode it's currently at.
+    // Optional so WorldState stays valid for anything not using the
+    // graph runtime (existing tests, or a future non-graph mode) --
+    // when both are set, currentNarrative/currentChoices above are a
+    // convenience cache mirroring that node, not a second source of
+    // truth; the node lookup via adventureId+currentNodeId is
+    // authoritative.
+    adventureId?: string;
+
+    currentNodeId?: string;
+
     updatedAt: string;
 
 }

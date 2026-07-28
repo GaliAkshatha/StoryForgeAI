@@ -1,11 +1,19 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, ChildProfile, Choice, LearningObjective, Reflection } from "../api/client";
+import {
+    api,
+    ChildProfile,
+    Choice,
+    LearningObjective,
+    Reflection,
+    LearningAnalyticsResult
+} from "../api/client";
 import { useSession } from "../state/SessionContext";
 import { ParchmentCard } from "../components/ParchmentCard";
 import { RuneButton } from "../components/RuneButton";
 import { GuideCharacter } from "../components/GuideCharacter";
 import { Starfield } from "../components/Starfield";
+import { NarrationControls } from "../components/NarrationControls";
 
 type Stage =
     | "setup"
@@ -13,7 +21,7 @@ type Stage =
     | "objective-reveal"
     | "playing"
     | "resolving"
-    | "reveal";
+    | "ended";
 
 interface AdventureContext {
     worldId: string;
@@ -50,6 +58,8 @@ export function AdventurePage() {
 
     const [reflection, setReflection] = useState<Reflection | null>(null);
 
+    const [analytics, setAnalytics] = useState<LearningAnalyticsResult | null>(null);
+
     const [error, setError] = useState<string | null>(null);
 
     const narrativeHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -71,7 +81,7 @@ export function AdventurePage() {
     // of a stale focus target.
     useEffect(() => {
 
-        if (stage === "playing" || stage === "reveal") {
+        if (stage === "playing" || stage === "ended") {
 
             narrativeHeadingRef.current?.focus();
 
@@ -145,9 +155,14 @@ export function AdventurePage() {
 
             setChoices(result.choices);
 
-            setReflection(result.reflection);
+            // v3: reflection/analytics only arrive when this turn
+            // concluded a chapter -- most turns leave them null, and
+            // the story simply continues (isEnding stays false).
+            setReflection(result.reflection ?? null);
 
-            setStage("reveal");
+            setAnalytics(result.analytics ?? null);
+
+            setStage(result.isEnding ? "ended" : "playing");
 
         }
         catch (err) {
@@ -165,11 +180,23 @@ export function AdventurePage() {
 
     }
 
-    function handleContinue() {
+    function handlePlayAgain() {
+
+        setStage("setup");
+
+        setContext(null);
+
+        setObjective(null);
+
+        setNarrative("");
+
+        setChoices([]);
 
         setReflection(null);
 
-        setStage("playing");
+        setAnalytics(null);
+
+        setLearningGoal("");
 
     }
 
@@ -277,10 +304,12 @@ export function AdventurePage() {
                                 ref={narrativeHeadingRef}
                                 tabIndex={-1}
                                 aria-live="polite"
-                                className="font-display text-parchment text-lg leading-relaxed relative outline-none"
+                                className="font-narrative text-parchment text-lg leading-loose tracking-wide relative outline-none"
                             >
                                 {narrative}
                             </h2>
+
+                            <NarrationControls text={narrative} />
 
                         </ParchmentCard>
 
@@ -294,7 +323,7 @@ export function AdventurePage() {
                                     key={choice.id}
                                     onClick={() => handleChoose(choice)}
                                     disabled={stage === "resolving"}
-                                    className={`text-left px-4 py-4 rounded-xl border-2 font-body transition-all duration-150 animate-popIn
+                                    className={`text-left px-5 py-5 rounded-xl border-2 font-body text-base leading-relaxed transition-all duration-150 animate-popIn
                                         ${selectedChoiceId === choice.id
                                             ? "border-ember bg-ember/20 text-parchment animate-pulseGlow"
                                             : "border-parchmentDim/25 text-parchment hover:border-mystic hover:bg-mystic/10 hover:-translate-y-0.5"}
@@ -319,10 +348,10 @@ export function AdventurePage() {
                     </div>
                 )}
 
-                {stage === "reveal" && reflection && (
+                {stage === "ended" && (
                     <div className="flex flex-col gap-6 animate-popIn">
 
-                        <ParchmentCard>
+                        <ParchmentCard className="border-ember/40">
                             {emotionalTone && (
                                 <p className="text-xs uppercase tracking-widest text-mystic mb-2">
                                     {emotionalTone}
@@ -332,27 +361,41 @@ export function AdventurePage() {
                                 ref={narrativeHeadingRef}
                                 tabIndex={-1}
                                 aria-live="polite"
-                                className="font-display text-parchment text-lg leading-relaxed outline-none"
+                                className="font-narrative text-parchment text-lg leading-loose tracking-wide outline-none mb-2"
                             >
                                 {narrative}
                             </h2>
+                            <p className="font-display text-ember text-sm mt-4">&mdash; The End &mdash;</p>
+
+                            <NarrationControls text={narrative} />
                         </ParchmentCard>
 
-                        <ParchmentCard className="border-ember/40">
-                            <p className="text-xs uppercase tracking-widest text-ember mb-2">
-                                A moment to think
-                            </p>
-                            <p className="text-parchment font-semibold mb-3">{reflection.question}</p>
-                            <ul className="text-sm text-parchmentDim flex flex-col gap-1 mb-4">
-                                {reflection.followUpQuestions.map((question, index) => (
-                                    <li key={index}>&bull; {question}</li>
-                                ))}
-                            </ul>
-                            <p className="text-mystic text-sm italic">{reflection.encouragement}</p>
-                        </ParchmentCard>
+                        {reflection && (
+                            <ParchmentCard>
+                                <p className="text-xs uppercase tracking-widest text-ember mb-2">
+                                    A moment to think
+                                </p>
+                                <p className="text-parchment font-semibold mb-3">{reflection.question}</p>
+                                <ul className="text-sm text-parchmentDim flex flex-col gap-1 mb-4">
+                                    {reflection.followUpQuestions.map((question, index) => (
+                                        <li key={index}>&bull; {question}</li>
+                                    ))}
+                                </ul>
+                                <p className="text-mystic text-sm italic">{reflection.encouragement}</p>
+                            </ParchmentCard>
+                        )}
 
-                        <RuneButton onClick={handleContinue} className="self-center">
-                            Continue the story &rarr;
+                        {analytics && (
+                            <ParchmentCard>
+                                <p className="text-xs uppercase tracking-widest text-mystic mb-2">
+                                    What Ember noticed
+                                </p>
+                                <p className="text-parchment text-sm">{analytics.summary}</p>
+                            </ParchmentCard>
+                        )}
+
+                        <RuneButton onClick={handlePlayAgain} className="self-center">
+                            Start a new chapter &rarr;
                         </RuneButton>
 
                     </div>
@@ -363,11 +406,11 @@ export function AdventurePage() {
             <GuideCharacter
                 guideKey={
                     stage === "setup" ? "adventure-start" :
-                    stage === "reveal" ? "adventure-reflection" :
+                    stage === "ended" ? "adventure-reflection" :
                     "adventure-situation"
                 }
                 override={
-                    stage === "reveal" && reflection
+                    stage === "ended" && reflection
                         ? { mood: "thinking", text: reflection.question }
                         : undefined
                 }

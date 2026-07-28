@@ -20,6 +20,7 @@
     "@storyforge/child": "workspace:*",
     "@storyforge/learning": "workspace:*",
     "@storyforge/simulation-engine": "workspace:*",
+    "@storyforge/story-graph": "workspace:*",
     "@storyforge/shared": "workspace:*"
   },
   "devDependencies": {

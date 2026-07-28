@@ -62,11 +62,18 @@ export interface Reflection {
     encouragement: string;
 }
 
+export interface LearningAnalyticsResult {
+    skillSignals: { skill: string; observation: string; delta: number }[];
+    behaviorNotes: string[];
+    summary: string;
+}
+
 export interface StartAdventureResult {
     worldId: string;
     sessionId: string;
     narrative: string;
     choices: Choice[];
+    isEnding: boolean;
     emotionalTone: string;
     objective: LearningObjective;
 }
@@ -74,9 +81,13 @@ export interface StartAdventureResult {
 export interface AdventureTurnResult {
     narrative: string;
     choices: Choice[];
+    isEnding: boolean;
     emotionalTone: string;
     learningSignals: string[];
-    reflection: Reflection;
+    // v3: only populated on the turn that concludes a chapter --
+    // Reflection/Analytics no longer run every turn.
+    reflection?: Reflection;
+    analytics?: LearningAnalyticsResult;
 }
 
 export interface LearningSummary {
@@ -218,6 +229,18 @@ export const api = {
 
         return request<{ weeklyTrend: WeeklyTrendPoint[]; summary: LearningSummary | null }>(
             `/reports/${childId}/trend`,
+            { token }
+        );
+
+    },
+
+    // Part 14: resume an in-progress adventure exactly where it was
+    // left off -- no new AI call, just reading back the persisted
+    // WorldState.
+    resumeAdventure(token: string, worldId: string) {
+
+        return request<{ worldId: string; narrative: string; choices: Choice[]; turn: number }>(
+            `/adventures/${worldId}/state`,
             { token }
         );
 

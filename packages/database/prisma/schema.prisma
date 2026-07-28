@@ -95,7 +95,7 @@ model StoryTurnRecord {
   situationText        String
   decisionText         String
   consequenceNarrative String
-  reflectionQuestion   String
+  reflectionQuestion   String?
   learningSignals      String[] @default([])
   createdAt            DateTime @default(now())
 
@@ -122,4 +122,128 @@ model LearningAnalyticsRecord {
 
   @@index([childId, generatedAt])
   @@map("learning_analytics_records")
+}
+
+// --- Story Graph domain (v3) -----------------------------------------
+//
+// Part 1's "New Runtime": one Adventure blueprint row plus many
+// StoryNode rows (one per graph vertex), generated once up front by
+// AdventureBlueprintGenerator. Gameplay after that is pure
+// AdventureId+nodeId lookups and edge traversal -- no further LLM
+// calls. StoryNode is a separate table (not nested JSON on
+// Adventure) specifically so background expansion can INSERT new
+// nodes into an existing graph later without a read-modify-write of
+// one giant blob.
+
+model AdventureRecord {
+  id            String   @id @default(uuid())
+  childId       String
+  title         String
+  moral         String
+  domain        String
+  characters    Json
+  world         Json
+  learningPlan  Json
+  emotionCurve  Json
+  genome        Json     @default("{}")
+  rootNodeId    String
+  createdAt     DateTime @default(now())
+
+  @@index([childId])
+  @@map("adventures")
+}
+
+model StoryNodeRecord {
+  // id is the LLM-chosen node id (e.g. "root", "left-path") and is
+  // only unique WITHIN one adventure's graph, not globally -- so the
+  // primary key is the (adventureId, id) pair, not id alone.
+  id               String
+  adventureId      String
+  narrative        String
+  // StoryChoice[] -- { id, text, nextNodeId, requiresFlags? }[]
+  choices          Json
+  learningSignals  String[] @default([])
+  // EmotionProfile -- { excitement, curiosity, confidence, fear, wonder, frustration, pride, calm }
+  emotion          Json
+  // StateEffect[]
+  effects          Json
+  difficulty       Int
+  readingLevel     String
+  isEnding         Boolean  @default(false)
+  endingType       String?
+  createdAt        DateTime @default(now())
+
+  @@id([adventureId, id])
+  @@index([adventureId])
+  @@map("story_nodes")
+}
+
+// v3 Part 3: Reflection/Analytics Engines read from these instead of
+// calling an LLM every turn. Derived deterministically from a
+// StoryNode's eventType at the moment of arrival -- see
+// AdventureRuntime.
+
+model AdventureEventRecord {
+  id          String   @id @default(uuid())
+  worldId     String
+  sessionId   String
+  childId     String
+  adventureId String
+  nodeId      String
+  eventType   String
+  narrative   String
+  emotion     Json     @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@map("adventure_events")
+}
+
+// Phase 9: dedicated emotion history, recorded every turn (not just
+// eventType-tagged ones), scoped per child across their whole
+// history rather than one session.
+
+model EmotionStateRecord {
+  id        String   @id @default(uuid())
+  childId   String
+  sessionId String
+  worldId   String
+  emotion   Json
+  recordedAt DateTime @default(now())
+
+  @@index([childId, recordedAt])
+  @@index([sessionId, recordedAt])
+  @@map("emotion_states")
+}
+
+// Phase 10: durable log behind WorldState.relationships' numeric
+// trust/affinity -- "why" a relationship is where it is.
+
+model NpcMemoryRecord {
+  id            String   @id @default(uuid())
+  childId       String
+  worldId       String
+  characterId   String
+  characterName String
+  eventType     String
+  description   String
+  createdAt     DateTime @default(now())
+
+  @@index([worldId, characterId])
+  @@map("npc_memory")
+}
+
+// Phases 2/8/13: deterministically-unlocked milestones.
+
+model AchievementRecord {
+  id         String   @id @default(uuid())
+  childId    String
+  key        String
+  title      String
+  description String
+  unlockedAt DateTime @default(now())
+
+  @@unique([childId, key])
+  @@index([childId])
+  @@map("achievements")
 }

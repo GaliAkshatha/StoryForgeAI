@@ -17,6 +17,7 @@
     "@storyforge/learning": "workspace:*",
     "@storyforge/database": "workspace:*",
     "@storyforge/simulation-engine": "workspace:*",
+    "@storyforge/story-graph": "workspace:*",
     "@storyforge/workflow-engine": "workspace:*",
     "@storyforge/shared": "workspace:*",
     "cors": "^2.8.5",

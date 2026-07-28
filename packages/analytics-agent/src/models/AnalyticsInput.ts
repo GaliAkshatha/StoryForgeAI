@@ -1,26 +1,19 @@
-export interface SessionEvent {
+import { SkillSignal } from "@storyforge/shared";
 
-    situation: string;
-
-    decisionText: string;
-
-    consequenceNarrative: string;
-
-    reflectionQuestion?: string;
-
-    // Short value tags the Consequence Engine attached to this turn
-    // (e.g. "honesty", "empathy") -- additional grounding for the
-    // Analytics Agent, not a diagnosis on their own.
-    learningSignals?: string[];
-
-}
-
+// v3: scores are computed deterministically by
+// @storyforge/learning's DeterministicAnalyticsEngine BEFORE this
+// agent ever runs (Part 4: "Generate scores mathematically. Gemini
+// only writes explanations."). This agent's job is narrowed to
+// exactly that -- it never invents a skillSignal or a delta, only
+// explains the ones it's given.
 export interface AnalyticsInput {
 
     sessionId: string;
 
     childId: string;
 
-    events: SessionEvent[];
+    skillSignals: SkillSignal[];
+
+    behaviorNotes: string[];
 
 }

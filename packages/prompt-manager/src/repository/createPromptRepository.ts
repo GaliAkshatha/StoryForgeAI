@@ -11,6 +11,8 @@ import { ConsequencePrompt } from "../templates/consequence.prompt";
 import { OpeningPrompt } from "../templates/opening.prompt";
 import { LearningGoalPrompt } from "../templates/learning-goal.prompt";
 import { LearningSummaryPrompt } from "../templates/learning-summary.prompt";
+import { AdventureBlueprintPrompt } from "../templates/adventure-blueprint.prompt";
+import { AdventureExpansionPrompt } from "../templates/adventure-expansion.prompt";
 
 export function createPromptRepository(): PromptRepository {
 
@@ -58,6 +60,14 @@ export function createPromptRepository(): PromptRepository {
 
     repository.register(
         LearningSummaryPrompt
+    );
+
+    repository.register(
+        AdventureBlueprintPrompt
+    );
+
+    repository.register(
+        AdventureExpansionPrompt
     );
 
     return repository;

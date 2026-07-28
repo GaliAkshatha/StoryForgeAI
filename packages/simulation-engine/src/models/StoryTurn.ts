@@ -19,7 +19,10 @@ export interface StoryTurn {
 
     consequenceNarrative: string;
 
-    reflectionQuestion: string;
+    // v3: Reflection now runs only at chapter/adventure end (Part 3),
+    // not every turn -- so most turns have no reflection question.
+    // Set only on the turn that concluded a chapter.
+    reflectionQuestion?: string;
 
     // The learningSignal tags the Consequence Engine attached to
     // this specific turn (see Consequence.learningSignals) --

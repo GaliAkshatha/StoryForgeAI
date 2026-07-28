@@ -65,6 +65,36 @@ import {
 
 } from "@storyforge/simulation-engine";
 
+import {
+
+    AdventureRepository,
+    StoryNodeRepository,
+    AdventureEventRepository,
+    EmotionRepository,
+    NpcMemoryRepository,
+    AchievementRepository,
+    StoryEdgeRepository,
+    InMemoryAdventureRepository,
+    InMemoryStoryNodeRepository,
+    InMemoryAdventureEventRepository,
+    InMemoryEmotionRepository,
+    InMemoryNpcMemoryRepository,
+    InMemoryAchievementRepository,
+    DerivedStoryEdgeRepository,
+    AdventureBlueprintGenerator,
+    AdventureCompiler,
+    GraphTraversalEngine,
+    EmotionTrendService,
+    EmotionTracker
+
+} from "@storyforge/story-graph";
+
+import {
+
+    DeterministicAnalyticsEngine
+
+} from "@storyforge/learning";
+
 export interface DependencyContainerConfig {
 
     // Which LLM provider powers narrative/reasoning generation.
@@ -89,6 +119,14 @@ export interface DependencyContainerConfig {
 
     embeddingModel?: string;
 
+    // Overrides the LLMClient LLMClientFactory would otherwise
+    // build from the fields above -- primarily for tests (a fake
+    // LLMClient that returns canned schema-conformant JSON, so
+    // integration tests can exercise the real DependencyContainer
+    // wiring without hitting a live provider). Same injection
+    // pattern as worldStateStore/adventureRepository below.
+    llmClient?: LLMClient;
+
     // Persistent World State (v2.0). Defaults to in-memory
     // implementations -- pass Postgres-backed ones (see
     // @storyforge/database) to survive server restarts. This is the
@@ -99,6 +137,21 @@ export interface DependencyContainerConfig {
     worldStateStore?: WorldStateStore;
 
     storyTurnRepository?: StoryTurnRepository;
+
+    // Story Graph domain (v3). Same injection pattern -- defaults to
+    // in-memory, pass Postgres-backed ones (see @storyforge/database)
+    // to persist adventure blueprints across restarts.
+    adventureRepository?: AdventureRepository;
+
+    storyNodeRepository?: StoryNodeRepository;
+
+    adventureEventRepository?: AdventureEventRepository;
+
+    emotionRepository?: EmotionRepository;
+
+    npcMemoryRepository?: NpcMemoryRepository;
+
+    achievementRepository?: AchievementRepository;
 
 }
 
@@ -140,6 +193,35 @@ export class DependencyContainer {
 
     readonly consequenceEngine: ConsequenceEngine;
 
+    // Story Graph domain (v3)
+
+    readonly adventureRepository: AdventureRepository;
+
+    readonly storyNodeRepository: StoryNodeRepository;
+
+    readonly adventureEventRepository: AdventureEventRepository;
+
+    readonly emotionRepository: EmotionRepository;
+
+    readonly npcMemoryRepository: NpcMemoryRepository;
+
+    readonly achievementRepository: AchievementRepository;
+
+    readonly storyEdgeRepository: StoryEdgeRepository;
+
+    readonly adventureBlueprintGenerator: AdventureBlueprintGenerator;
+
+    readonly adventureCompiler: AdventureCompiler;
+
+    readonly graphTraversalEngine: GraphTraversalEngine;
+
+    // Part 4: deterministic trait scoring -- never calls an LLM.
+    readonly deterministicAnalyticsEngine: DeterministicAnalyticsEngine;
+
+    readonly emotionTrendService: EmotionTrendService;
+
+    readonly emotionTracker: EmotionTracker;
+
     constructor(
         config: DependencyContainerConfig
     ) {
@@ -160,6 +242,7 @@ export class DependencyContainer {
             );
 
         this.llm =
+            config.llmClient ??
             LLMClientFactory.create({
 
                 provider: config.provider,
@@ -302,6 +385,48 @@ export class DependencyContainer {
             config.storyTurnRepository ?? new InMemoryStoryTurnRepository();
 
         this.consequenceEngine = new ConsequenceEngine(ai);
+
+        // ------------------------------------------------------
+        // Story Graph domain (v3: one expensive generation up
+        // front, gameplay is pure traversal afterward)
+        // ------------------------------------------------------
+
+        this.adventureRepository =
+            config.adventureRepository ?? new InMemoryAdventureRepository();
+
+        this.storyNodeRepository =
+            config.storyNodeRepository ?? new InMemoryStoryNodeRepository();
+
+        this.adventureEventRepository =
+            config.adventureEventRepository ?? new InMemoryAdventureEventRepository();
+
+        this.emotionRepository =
+            config.emotionRepository ?? new InMemoryEmotionRepository();
+
+        this.npcMemoryRepository =
+            config.npcMemoryRepository ?? new InMemoryNpcMemoryRepository();
+
+        this.achievementRepository =
+            config.achievementRepository ?? new InMemoryAchievementRepository();
+
+        this.storyEdgeRepository =
+            new DerivedStoryEdgeRepository(this.storyNodeRepository);
+
+        this.adventureBlueprintGenerator = new AdventureBlueprintGenerator(ai);
+
+        this.adventureCompiler = new AdventureCompiler(
+            this.adventureBlueprintGenerator,
+            this.adventureRepository,
+            this.storyNodeRepository
+        );
+
+        this.graphTraversalEngine = new GraphTraversalEngine(this.storyNodeRepository);
+
+        this.deterministicAnalyticsEngine = new DeterministicAnalyticsEngine();
+
+        this.emotionTrendService = new EmotionTrendService();
+
+        this.emotionTracker = new EmotionTracker(this.emotionRepository, this.emotionTrendService);
 
     }
 }

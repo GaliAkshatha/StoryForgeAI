@@ -32,13 +32,28 @@ import {
     PostgresChildRepository,
     PostgresLearningRepository,
     PostgresWorldStateStore,
-    PostgresStoryTurnRepository
+    PostgresStoryTurnRepository,
+    PostgresAdventureRepository,
+    PostgresStoryNodeRepository,
+    PostgresAdventureEventRepository,
+    PostgresEmotionRepository,
+    PostgresNpcMemoryRepository,
+    PostgresAchievementRepository
 } from "@storyforge/database";
 
 import {
     WorldStateStore,
     StoryTurnRepository
 } from "@storyforge/simulation-engine";
+
+import {
+    AdventureRepository,
+    StoryNodeRepository,
+    AdventureEventRepository,
+    EmotionRepository,
+    NpcMemoryRepository,
+    AchievementRepository
+} from "@storyforge/story-graph";
 
 import {
     DependencyContainer,
@@ -107,6 +122,18 @@ export class AppContainer {
 
         let storyTurnRepository: StoryTurnRepository | undefined;
 
+        let adventureRepository: AdventureRepository | undefined;
+
+        let storyNodeRepository: StoryNodeRepository | undefined;
+
+        let adventureEventRepository: AdventureEventRepository | undefined;
+
+        let emotionRepository: EmotionRepository | undefined;
+
+        let npcMemoryRepository: NpcMemoryRepository | undefined;
+
+        let achievementRepository: AchievementRepository | undefined;
+
         if (persistence === "postgres") {
 
             this.prisma = createPrismaClient();
@@ -123,6 +150,18 @@ export class AppContainer {
 
             storyTurnRepository = new PostgresStoryTurnRepository(this.prisma);
 
+            adventureRepository = new PostgresAdventureRepository(this.prisma);
+
+            storyNodeRepository = new PostgresStoryNodeRepository(this.prisma);
+
+            adventureEventRepository = new PostgresAdventureEventRepository(this.prisma);
+
+            emotionRepository = new PostgresEmotionRepository(this.prisma);
+
+            npcMemoryRepository = new PostgresNpcMemoryRepository(this.prisma);
+
+            achievementRepository = new PostgresAchievementRepository(this.prisma);
+
         }
         else {
 
@@ -134,7 +173,10 @@ export class AppContainer {
 
             learningRepository = new InMemoryLearningRepository();
 
-            // worldStateStore / storyTurnRepository stay undefined --
+            // worldStateStore / storyTurnRepository / adventureRepository
+            // / storyNodeRepository / adventureEventRepository /
+            // emotionRepository / npcMemoryRepository /
+            // achievementRepository stay undefined --
             // DependencyContainer falls back to its own in-memory
             // defaults, same as before v2.0.
 
@@ -160,7 +202,19 @@ export class AppContainer {
 
             worldStateStore,
 
-            storyTurnRepository
+            storyTurnRepository,
+
+            adventureRepository,
+
+            storyNodeRepository,
+
+            adventureEventRepository,
+
+            emotionRepository,
+
+            npcMemoryRepository,
+
+            achievementRepository
 
         });
 

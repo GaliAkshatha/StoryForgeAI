@@ -35,3 +35,35 @@ body {
         transition-duration: 0.001ms !important;
     }
 }
+
+/* Part 13: manual reduced-motion override (in addition to the OS
+   media query above) */
+.a11y-reduced-motion *, .a11y-reduced-motion *::before, .a11y-reduced-motion *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+}
+
+/* Part 13: high contrast mode -- near-black background, near-white
+   text, stronger borders */
+.a11y-high-contrast {
+    --tw-bg-opacity: 1;
+}
+.a11y-high-contrast body {
+    background: #000000;
+    color: #ffffff;
+}
+.a11y-high-contrast .parchment-panel {
+    background: #0a0a0a;
+    border: 2px solid #ffffff;
+}
+.a11y-high-contrast .text-parchmentDim {
+    color: #e5e5e5 !important;
+}
+
+/* Part 13: dyslexia-friendly font swap for narrative/body text */
+.a11y-dyslexia-font .font-narrative,
+.a11y-dyslexia-font .font-body {
+    font-family: "Lexend", sans-serif !important;
+    letter-spacing: 0.02em;
+}

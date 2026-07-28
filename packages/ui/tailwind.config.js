@@ -29,6 +29,11 @@ export default {
 
                 body: ["Nunito", "sans-serif"],
 
+                // Part 11: narrative paragraphs use a highly readable
+                // dedicated font, never the decorative display face --
+                // fantasy typography is reserved for titles/headings.
+                narrative: ["Lexend", "sans-serif"],
+
                 data: ["\"IBM Plex Mono\"", "monospace"]
 
             },

@@ -5,9 +5,11 @@
   "packageManager": "pnpm@11.9.0",
   "type": "module",
   "scripts": {
-    "build": "echo Build coming soon",
-    "dev": "echo Development coming soon",
-    "lint": "echo Lint coming soon",
-    "test": "echo Test coming soon"
+    "build": "pnpm -r build",
+    "dev": "pnpm --parallel --filter @storyforge/api --filter @storyforge/ui run dev",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "db:generate": "pnpm --filter @storyforge/database generate",
+    "db:migrate": "pnpm --filter @storyforge/database migrate:dev"
   }
 }

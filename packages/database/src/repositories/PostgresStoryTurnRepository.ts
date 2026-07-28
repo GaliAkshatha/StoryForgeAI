@@ -17,7 +17,7 @@ interface StoryTurnRow {
 
     consequenceNarrative: string;
 
-    reflectionQuestion: string;
+    reflectionQuestion: string | null;
 
     learningSignals: string[];
 
@@ -53,7 +53,7 @@ export class PostgresStoryTurnRepository implements StoryTurnRepository {
 
                 consequenceNarrative: turn.consequenceNarrative,
 
-                reflectionQuestion: turn.reflectionQuestion,
+                reflectionQuestion: turn.reflectionQuestion ?? null,
 
                 learningSignals: turn.learningSignals,
 
@@ -111,7 +111,7 @@ export class PostgresStoryTurnRepository implements StoryTurnRepository {
 
             consequenceNarrative: record.consequenceNarrative,
 
-            reflectionQuestion: record.reflectionQuestion,
+            reflectionQuestion: record.reflectionQuestion ?? undefined,
 
             learningSignals: record.learningSignals,
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, ChildProfile, WeeklyReport, WeeklyTrendPoint, LearningSummary } from "../api/client";
 import { useSession } from "../state/SessionContext";
@@ -94,7 +94,7 @@ export function ParentDashboardPage() {
 
             <Starfield count={14} />
 
-            <div className="relative z-10 max-w-5xl mx-auto">
+            <div className="relative z-10 max-w-[1600px] mx-auto px-2 md:px-6">
 
                 <header className="flex items-center justify-between mb-10">
 
@@ -118,9 +118,9 @@ export function ParentDashboardPage() {
 
                 </header>
 
-                <div className="grid md:grid-cols-[280px_1fr] gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                    <ParchmentCard>
+                    <ParchmentCard className="lg:col-span-3 h-fit">
 
                         <h2 className="font-display text-lg text-ember mb-4">Storybook Shelf</h2>
 
@@ -163,11 +163,11 @@ export function ParentDashboardPage() {
 
                     </ParchmentCard>
 
-                    <div className="flex flex-col gap-6">
+                    <div className="lg:col-span-9 grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
                         {selectedChild ? (
                             <>
-                                <ParchmentCard className="flex items-center justify-between">
+                                <ParchmentCard className="md:col-span-2 flex items-center justify-between">
                                     <div>
                                         <h2 className="font-display text-xl text-parchment">
                                             {selectedChild.name}'s Adventure
@@ -188,7 +188,7 @@ export function ParentDashboardPage() {
                             </>
                         ) : (
                             !loading && (
-                                <ParchmentCard>
+                                <ParchmentCard className="md:col-span-2">
                                     <p className="text-parchmentDim">
                                         No heroes yet. Create one to begin their story.
                                     </p>
@@ -335,7 +335,13 @@ function TrendPanel({
         );
     }
 
-    const skills = [...new Set(trend.flatMap(week => week.skillGrowth.map(p => p.skill)))];
+    // Part 15 (Performance): memoized so re-renders that don't
+    // change `trend` (e.g. the parent card re-rendering for an
+    // unrelated reason) don't recompute this on every render.
+    const skills = useMemo(
+        () => [...new Set(trend.flatMap(week => week.skillGrowth.map(p => p.skill)))],
+        [trend]
+    );
 
     return (
         <ParchmentCard>
@@ -428,6 +434,8 @@ function Sparkline({
 
 function WeeklyReportPanel({ report }: { report: WeeklyReport | null }) {
 
+    const [expanded, setExpanded] = useState(false);
+
     if (!report) {
         return (
             <ParchmentCard>
@@ -436,20 +444,31 @@ function WeeklyReportPanel({ report }: { report: WeeklyReport | null }) {
         );
     }
 
+    const visibleSkills = expanded ? report.skillGrowth : report.skillGrowth.slice(0, 1);
+
     return (
         <ParchmentCard>
 
-            <h3 className="font-display text-lg text-mystic mb-2">This Week</h3>
+            <div className="flex items-center justify-between mb-2">
+                <h3 className="font-display text-lg text-mystic">This Week</h3>
+                <button
+                    onClick={() => setExpanded(current => !current)}
+                    className="text-xs text-ember hover:underline"
+                    aria-expanded={expanded}
+                >
+                    {expanded ? "Show less" : "View Details"}
+                </button>
+            </div>
 
             <p className="text-parchmentDim text-sm mb-5">{report.summary}</p>
 
-            {report.skillGrowth.length > 0 && (
+            {visibleSkills.length > 0 && (
                 <div className="mb-5">
                     <p className="text-xs uppercase tracking-widest text-parchmentDim mb-2">
                         Observed skills
                     </p>
                     <div className="flex flex-col gap-2">
-                        {report.skillGrowth.map(point => (
+                        {visibleSkills.map(point => (
                             <div key={point.skill}>
                                 <div className="flex justify-between text-xs mb-1">
                                     <span className="capitalize">{point.skill}</span>
@@ -471,7 +490,13 @@ function WeeklyReportPanel({ report }: { report: WeeklyReport | null }) {
                 </div>
             )}
 
-            {report.behaviorHighlights.length > 0 && (
+            {!expanded && (report.behaviorHighlights.length > 0 || report.recommendations.length > 0) && (
+                <p className="text-xs text-parchmentDim/60">
+                    Click "View Details" for the full breakdown and Ember's suggestions.
+                </p>
+            )}
+
+            {expanded && report.behaviorHighlights.length > 0 && (
                 <div className="mb-5">
                     <p className="text-xs uppercase tracking-widest text-parchmentDim mb-2">
                         What they did
@@ -484,7 +509,7 @@ function WeeklyReportPanel({ report }: { report: WeeklyReport | null }) {
                 </div>
             )}
 
-            {report.recommendations.length > 0 && (
+            {expanded && report.recommendations.length > 0 && (
                 <div>
                     <p className="text-xs uppercase tracking-widest text-parchmentDim mb-2">
                         Ember's suggestions

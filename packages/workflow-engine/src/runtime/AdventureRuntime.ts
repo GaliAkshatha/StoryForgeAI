@@ -4,10 +4,11 @@ import { AgentContextFactory } from "../utils/AgentContextFactory";
 import {
     createInitialWorldState,
     DeterministicSimulator,
-    RelationshipStatus
+    WorldState,
+    initialChapterState
 } from "@storyforge/simulation-engine";
 
-import { StoryNode } from "@storyforge/story-graph";
+import { StoryNode, ChapterProgressionEngine } from "@storyforge/story-graph";
 
 import { Reflection, LearningAnalytics } from "@storyforge/shared";
 
@@ -17,11 +18,6 @@ import {
     AdventureTurnInput,
     AdventureTurnOutput
 } from "../models/AdventureTurn";
-
-// Fewer than this many non-ending nodes still reachable ahead of the
-// child's current position triggers a background expansion (Part
-// 1's "Remaining Nodes < Threshold -> Background Expansion").
-const EXPANSION_THRESHOLD = 3;
 
 // v3 Core Loop: gameplay is graph TRAVERSAL, not generation.
 //
@@ -95,7 +91,17 @@ export class AdventureRuntime {
 
             );
 
-        const { adventure, rootNode } = compiled;
+        const { adventure, rootNode: structuralRootNode, narrativeState } = compiled;
+
+        // Correction pass (Section 5): AdventureCompiler now returns
+        // structure only -- root's narrative is "" with a
+        // pendingRenderRequest attached. This is the SAME call
+        // playTurn() makes for every other node; no separate root
+        // narration path exists.
+        const rootNode =
+            await this.container.narrationRenderingService.ensureRendered(
+                structuralRootNode
+            );
 
         let worldState = createInitialWorldState({
 
@@ -120,6 +126,15 @@ export class AdventureRuntime {
             adventureId: adventure.id,
 
             currentNodeId: rootNode.id,
+
+            // Section B: chapter progression starts at turn 0,
+            // "opening" -- ChapterProgressionEngine's own rule
+            // guarantees the opening phase can never immediately end.
+            chapterState: initialChapterState(),
+
+            // Phase 2A: the seeded story state, already derived by
+            // InitialStoryBuilder from adventure metadata.
+            narrativeState,
 
             currentNarrative: rootNode.narrative,
 
@@ -221,6 +236,17 @@ export class AdventureRuntime {
         }
 
         // ----------------------------------------------------
+        // Section 3 (correction pass): render narration lazily, only
+        // for the node actually reached. A no-op for nodes that
+        // already have narrative (the initial blueprint's nodes,
+        // untouched this pass) -- only matters for
+        // DeterministicExpansionService-produced nodes, which start
+        // empty on purpose.
+        // ----------------------------------------------------
+
+        nextNode = await this.container.narrationRenderingService.ensureRendered(nextNode);
+
+        // ----------------------------------------------------
         // Deterministic simulation: the same DeterministicSimulator
         // from v2.0, unchanged -- only the source of the effects
         // being applied changed (a pre-generated node instead of a
@@ -229,11 +255,35 @@ export class AdventureRuntime {
 
         const simulation = this.simulator.apply(worldState, nextNode.effects);
 
+        // ----------------------------------------------------
+        // Section B/C: advance deterministic chapter progression
+        // BEFORE deciding whether to expand or conclude. eventOccurred
+        // reuses the SAME signal AdventureEvent logging already uses
+        // below (nextNode.eventType) -- no new classification.
+        // ----------------------------------------------------
+
+        const advancedChapterState = this.container.chapterProgressionEngine.advance(
+            worldState.chapterState ?? initialChapterState(),
+            !!nextNode.eventType
+        );
+
+        // Phase 2A (Section 9/10): applied ONLY to nextNode -- the
+        // node the child actually traversed to. Unvisited sibling
+        // choices generated alongside it are never touched, so their
+        // semantic content cannot leak into the played NarrativeState.
+        const advancedNarrativeState = worldState.narrativeState
+            ? this.container.narrativeStateTransition.apply(worldState.narrativeState, nextNode)
+            : worldState.narrativeState;
+
         let updatedWorldState = {
 
             ...simulation.state,
 
             currentNodeId: nextNode.id,
+
+            chapterState: advancedChapterState,
+
+            narrativeState: advancedNarrativeState,
 
             currentNarrative: nextNode.narrative,
 
@@ -250,23 +300,44 @@ export class AdventureRuntime {
         await this.container.worldStateStore.save(updatedWorldState);
 
         // ----------------------------------------------------
-        // Background Expansion: only triggers occasionally (when
-        // nearing exhaustion), never every turn. Runs synchronously
-        // within this request in the current implementation -- there
-        // is no separate job queue in this monorepo yet, so "fire
-        // and forget" isn't available. The turn that crosses the
-        // threshold pays a one-time generation cost; every other
-        // turn pays nothing.
+        // Progressive expansion (Section D/E correction pass): a
+        // node reached with isEnding=false and zero choices is an
+        // unexpanded FRONTIER, not a chapter conclusion -- expand it
+        // now, before returning to the child. ChapterProgressionEngine
+        // decides whether that expansion produces more frontier or a
+        // genuine ending; this runtime never decides eligibility
+        // itself, only acts on it.
         // ----------------------------------------------------
 
-        if (!nextNode.isEnding) {
+        if (!nextNode.isEnding && nextNode.choices.length === 0) {
+
+            const endingEligible = this.container.chapterProgressionEngine.canEnd(
+                advancedChapterState
+            );
 
             nextNode = await this.maybeExpandGraph(
                 adventureId,
                 nextNode,
                 input,
-                updatedWorldState.relationships
+                updatedWorldState,
+                endingEligible
             );
+
+            updatedWorldState = {
+
+                ...updatedWorldState,
+
+                currentChoices: nextNode.choices.map(choice => ({
+
+                    id: choice.id,
+
+                    text: choice.text
+
+                }))
+
+            };
+
+            await this.container.worldStateStore.save(updatedWorldState);
 
         }
 
@@ -582,26 +653,6 @@ export class AdventureRuntime {
 
         });
 
-        // nextNode may have been replaced by maybeExpandGraph (its
-        // choices rewritten from an ending into a junction) -- make
-        // sure the persisted WorldState and the response both
-        // reflect that final version, not the pre-expansion one.
-        updatedWorldState = {
-
-            ...updatedWorldState,
-
-            currentChoices: nextNode.choices.map(choice => ({
-
-                id: choice.id,
-
-                text: choice.text
-
-            }))
-
-        };
-
-        await this.container.worldStateStore.save(updatedWorldState);
-
         return {
 
             narrative: nextNode.narrative,
@@ -639,20 +690,20 @@ export class AdventureRuntime {
         adventureId: string,
         currentNode: StoryNode,
         input: AdventureTurnInput,
-        relationships: RelationshipStatus[]
+        worldState: WorldState,
+        endingEligible: boolean
     ): Promise<StoryNode> {
 
-        const allNodes =
-            await this.container.storyNodeRepository.findByAdventureId(
-                adventureId
-            );
-
-        const remaining = this.countReachableNonEndingNodes(
-            allNodes,
-            currentNode.id
-        );
-
-        if (remaining >= EXPANSION_THRESHOLD) {
+        // Section D/E correction pass: expand precisely when this
+        // node is a genuinely unexpanded frontier (isEnding=false,
+        // zero choices) -- not a proactive "running low ahead"
+        // heuristic. That heuristic was designed for the old
+        // pre-built-blueprint model (variable depth already on disk)
+        // and would redundantly re-expand an already-expanded
+        // non-ending node under the current one-layer-at-a-time
+        // model, discarding real choices the child hasn't picked
+        // from yet.
+        if (currentNode.isEnding || currentNode.choices.length > 0) {
             return currentNode;
         }
 
@@ -663,15 +714,6 @@ export class AdventureRuntime {
             return currentNode;
         }
 
-        const knowledgeContext =
-            await this.container.knowledgeBase.queryAsContext(
-
-                `${adventure.title} ${currentNode.narrative}`,
-
-                { topK: 5, domain: adventure.domain }
-
-            );
-
         // Part 5 (Emotion Engine): let recent emotional trend shape
         // the next chapter -- purely arithmetic, no LLM call.
         const recentEvents =
@@ -679,41 +721,78 @@ export class AdventureRuntime {
                 input.sessionId
             );
 
-        const emotionalGuidance =
+        const emotionGuidance =
             this.container.emotionTrendService.guidance(
                 recentEvents.slice(-3).map(event => event.emotion)
-            ).promptNote;
+            );
 
+        // Phases B-M: this is the deterministic replacement for
+        // AdventureBlueprintGenerator.expandFrom() -- candidate
+        // generation, constraint filtering, and scoring are all
+        // computed here with no LLM call -- and (correction pass,
+        // Section 3) narration is no longer rendered here at all;
+        // nodes come back with structure only, narrated lazily on
+        // actual arrival (see NarrationRenderingService, called from
+        // playTurn below).
         const expansion =
-            await this.container.adventureBlueprintGenerator.expandFrom(
+            await this.container.deterministicExpansionService.expand({
 
-                {
+                adventureId,
 
-                    adventureId,
+                worldState,
 
-                    childName: input.childName,
+                characters: adventure.characters,
 
-                    ageRange: input.ageRange,
+                actorName: input.childName,
 
-                    aboutChild: input.aboutChild,
+                ageRange: input.ageRange,
 
-                    moral: adventure.moral,
+                aboutChild: input.aboutChild,
 
-                    characters: adventure.characters,
+                domain: adventure.domain,
 
-                    world: adventure.world,
+                skillFocus: adventure.learningPlan.map(entry => entry.skillFocus),
 
-                    hingeNarrative: currentNode.narrative,
+                recentEventTypes: recentEvents.map(event => event.eventType),
 
-                    relationships,
+                recentEvents,
 
-                    emotionalGuidance
+                emotionGuidance,
+
+                turn: worldState.turn,
+
+                endingEligible,
+
+                // Phase 2A: falls back to a minimal default only for
+                // legacy WorldState records that predate this field
+                // (Section 3 backward-compatibility case) -- every
+                // NEW adventure has this seeded at startAdventure().
+                narrativeState: worldState.narrativeState ?? {
+
+                    location: worldState.location,
+
+                    activeCharacterIds: [],
+
+                    currentGoal: "continue the adventure",
+
+                    establishedFacts: [],
+
+                    unresolvedThreads: [],
+
+                    recentEventTypes: []
 
                 },
 
-                { knowledgeContext }
+                nodeIdPrefix: `ch-${crypto.randomUUID().slice(0, 8)}`
 
-            );
+            });
+
+        // Section 1: zero valid candidates is a safe no-op, not an
+        // error -- leave currentNode exactly as it was rather than
+        // grafting on an empty/invalid choice set.
+        if (expansion.nodes.length === 0) {
+            return currentNode;
+        }
 
         await this.container.storyNodeRepository.saveMany(expansion.nodes);
 
@@ -723,6 +802,10 @@ export class AdventureRuntime {
 
             choices: expansion.entryChoices,
 
+            // currentNode ITSELF never becomes an ending -- only its
+            // newly-created CHILDREN can be (expansion.nodes, marked
+            // isEnding per endingEligible above). Reaching a genuine
+            // ending is a separate, later turn's traversal.
             isEnding: false,
 
             endingType: undefined
@@ -734,58 +817,6 @@ export class AdventureRuntime {
         );
 
         return rewrittenCurrentNode;
-
-    }
-
-    // Forward BFS from fromNodeId, counting distinct non-ending nodes
-    // reached (excluding fromNodeId itself). Correctly accounts for
-    // convergent paths -- a graph where many choices loop back
-    // together won't look artificially "full" just because it has
-    // many edges.
-    private countReachableNonEndingNodes(
-        nodes: StoryNode[],
-        fromNodeId: string
-    ): number {
-
-        const byId = new Map(nodes.map(node => [node.id, node]));
-
-        const visited = new Set<string>([fromNodeId]);
-
-        const queue = [fromNodeId];
-
-        while (queue.length > 0) {
-
-            const currentId = queue.shift()!;
-
-            const current = byId.get(currentId);
-
-            if (!current) {
-                continue;
-            }
-
-            for (const choice of current.choices) {
-
-                if (!visited.has(choice.nextNodeId)) {
-
-                    visited.add(choice.nextNodeId);
-
-                    queue.push(choice.nextNodeId);
-
-                }
-
-            }
-
-        }
-
-        visited.delete(fromNodeId);
-
-        return [...visited]
-
-            .map(id => byId.get(id))
-
-            .filter((node): node is StoryNode => !!node && !node.isEnding)
-
-            .length;
 
     }
 

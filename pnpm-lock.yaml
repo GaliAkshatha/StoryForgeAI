@@ -157,6 +157,9 @@ importers:
       '@storyforge/learning':
         specifier: workspace:*
         version: link:../learning
+      '@storyforge/llm-client':
+        specifier: workspace:*
+        version: link:../llm-client
       '@storyforge/parent':
         specifier: workspace:*
         version: link:../parent
@@ -436,6 +439,9 @@ importers:
       '@storyforge/prompt-manager':
         specifier: workspace:*
         version: link:../prompt-manager
+      '@storyforge/shared':
+        specifier: workspace:*
+        version: link:../shared
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2

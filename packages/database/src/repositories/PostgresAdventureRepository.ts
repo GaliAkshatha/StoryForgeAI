@@ -32,6 +32,8 @@ interface AdventureRow {
 
     genome: unknown;
 
+    premise: string;
+
     rootNodeId: string;
 
     createdAt: Date;
@@ -91,9 +93,11 @@ export class PostgresAdventureRepository implements AdventureRepository {
 
             learningPlan: adventure.learningPlan as unknown as object,
 
-            emotionCurve: adventure.emotionCurve as unknown as object,
+            emotionCurve: (adventure.emotionCurve ?? []) as unknown as object,
 
             genome: adventure.genome as unknown as object,
+
+            premise: adventure.premise,
 
             rootNodeId: adventure.rootNodeId,
 
@@ -138,6 +142,8 @@ export class PostgresAdventureRepository implements AdventureRepository {
             emotionCurve: record.emotionCurve as EmotionCurvePoint[],
 
             genome: record.genome as StoryGenome,
+
+            premise: record.premise,
 
             rootNodeId: record.rootNodeId,
 

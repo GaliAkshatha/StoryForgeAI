@@ -50,7 +50,9 @@ export class LearningGoalService {
 
             prompt,
 
-            responseFormat: "json"
+            responseFormat: "json",
+
+            metadata: { caller: "LearningGoalService", purpose: "derive_learning_objective" }
 
         });
 

@@ -9,6 +9,11 @@ import { GraphValidator } from "./GraphValidator";
 import { ADVENTURE_BLUEPRINT_SCHEMA } from "./adventureBlueprintSchema";
 import { ADVENTURE_EXPANSION_SCHEMA } from "./adventureExpansionSchema";
 
+// See GeminiClient for why this is opt-in -- dumping every generated
+// adventure's full text by default is noisy and can expose
+// generated/user-derived content in logs.
+const DEBUG_RAW_RESPONSE = process.env.LLM_DEBUG_RAW_RESPONSE === "true";
+
 export interface GenerateBlueprintInput {
 
     childId: string;
@@ -52,9 +57,21 @@ interface BlueprintLLMOutput {
 
     rootNodeId: string;
 
-    nodes: Omit<StoryNode, "adventureId" | "createdAt">[];
+    nodes: RawBlueprintNode[];
 
 }
+
+// A node exactly as Gemini returns it -- `effectsJson` is a
+// JSON-encoded string, not a nested array of objects (see
+// adventureBlueprintSchema.ts for why: the nested array-of-objects
+// shape repeatedly triggered a live "too many states for serving"
+// 400 from Gemini's constrained decoding). parseEffects() below
+// converts this into the real StoryNode shape.
+type RawBlueprintNode = Omit<StoryNode, "adventureId" | "createdAt" | "effects"> & {
+
+    effectsJson: string;
+
+};
 
 export interface GeneratedBlueprint {
 
@@ -111,7 +128,7 @@ interface ExpansionLLMOutput {
 
     entryChoices: StoryChoice[];
 
-    nodes: Omit<StoryNode, "adventureId" | "createdAt">[];
+    nodes: RawBlueprintNode[];
 
 }
 
@@ -120,6 +137,22 @@ interface ExpansionLLMOutput {
 // complete, self-contained chapter of the Story Graph. Everything
 // after this is pure traversal -- see StoryNodeRepository /
 // AdventureRepository and the (future) graph-traversal runtime.
+// @deprecated Correction pass (LLM-owned-topology removal): both
+// generate() and expandFrom() are superseded and no longer
+// constructed into AdventureCompiler's pipeline. generate() asked
+// Gemini to invent an entire node/edge topology in one call, which
+// both (a) caused a live "too many states for serving" 400 from the
+// resulting schema size, and (b) let Gemini generate a structurally
+// invalid graph (an unreachable node) since free-form per-node
+// generation has no mechanism to guarantee a global
+// graph-connectivity invariant. Replaced by
+// AdventureMetadataGenerator (creative content only, no topology)
+// + InitialStoryBuilder (deterministic structure, zero LLM calls).
+// expandFrom() was already superseded earlier by
+// DeterministicExpansionService for ongoing chapter expansion. Kept
+// -- not deleted -- since external callers weren't ruled out; see
+// DependencyContainer for where this is still constructed but no
+// longer wired into AdventureCompiler.
 export class AdventureBlueprintGenerator {
 
     private readonly validator = new GraphValidator();
@@ -151,15 +184,21 @@ export class AdventureBlueprintGenerator {
 
             responseFormat: "json",
 
-            responseSchema: ADVENTURE_BLUEPRINT_SCHEMA
+            responseSchema: ADVENTURE_BLUEPRINT_SCHEMA,
+
+            metadata: { caller: "AdventureBlueprintGenerator", purpose: "generate_adventure_blueprint" }
 
         });
 
-        console.log(
-            "\n===== AdventureBlueprintGenerator: raw LLM response before JsonParser.parse() =====\n" +
-            response.text +
-            "\n===== end raw response =====\n"
-        );
+        if (DEBUG_RAW_RESPONSE) {
+
+            console.log(
+                "\n===== AdventureBlueprintGenerator: raw LLM response before JsonParser.parse() (LLM_DEBUG_RAW_RESPONSE=true) =====\n" +
+                response.text +
+                "\n===== end raw response =====\n"
+            );
+
+        }
 
         let output: BlueprintLLMOutput;
 
@@ -187,15 +226,23 @@ export class AdventureBlueprintGenerator {
 
         const createdAt = new Date().toISOString();
 
-        const nodes: StoryNode[] = output.nodes.map(node => ({
+        const nodes: StoryNode[] = output.nodes.map(node => {
 
-            ...node,
+            const { effectsJson, ...rest } = node;
 
-            adventureId,
+            return {
 
-            createdAt
+                ...rest,
 
-        }));
+                effects: this.parseEffectsJson(effectsJson, node.id),
+
+                adventureId,
+
+                createdAt
+
+            };
+
+        });
 
         const structural = this.validator.validate(nodes, output.rootNodeId);
 
@@ -213,6 +260,12 @@ export class AdventureBlueprintGenerator {
             id: adventureId,
 
             childId: input.childId,
+
+            // Deprecated path -- premise didn't exist in the old
+            // blueprint schema and this method is never called by
+            // AdventureCompiler anymore. Empty string keeps the type
+            // satisfied without inventing meaning for dead code.
+            premise: "",
 
             title: output.title,
 
@@ -237,6 +290,43 @@ export class AdventureBlueprintGenerator {
         };
 
         return { adventure, nodes };
+
+    }
+
+    // effectsJson is a JSON-encoded string (see
+    // adventureBlueprintSchema.ts / RawBlueprintNode for why the
+    // schema no longer represents effects as a nested array). Malformed
+    // JSON from the model degrades to an empty effects array rather
+    // than failing the entire blueprint -- a node with no effects is
+    // a minor content gap, not a reason to discard an otherwise-valid
+    // generation.
+    private parseEffectsJson(
+        effectsJson: string,
+        nodeId: string
+    ): StoryNode["effects"] {
+
+        if (!effectsJson) {
+            return [];
+        }
+
+        try {
+
+            const parsed = JSON.parse(effectsJson);
+
+            return Array.isArray(parsed) ? parsed : [];
+
+        }
+        catch (error) {
+
+            console.error(
+                `\n===== AdventureBlueprintGenerator: malformed effectsJson on node '${nodeId}' -- defaulting to no effects =====\n` +
+                `raw: ${effectsJson.slice(0, 200)}\n` +
+                `error: ${error instanceof Error ? error.message : String(error)}\n`
+            );
+
+            return [];
+
+        }
 
     }
 
@@ -334,15 +424,21 @@ export class AdventureBlueprintGenerator {
 
             responseFormat: "json",
 
-            responseSchema: ADVENTURE_EXPANSION_SCHEMA
+            responseSchema: ADVENTURE_EXPANSION_SCHEMA,
+
+            metadata: { caller: "AdventureBlueprintGenerator", purpose: "expand_story_graph" }
 
         });
 
-        console.log(
-            "\n===== AdventureBlueprintGenerator.expandFrom: raw LLM response before JsonParser.parse() =====\n" +
-            response.text +
-            "\n===== end raw response =====\n"
-        );
+        if (DEBUG_RAW_RESPONSE) {
+
+            console.log(
+                "\n===== AdventureBlueprintGenerator.expandFrom: raw LLM response before JsonParser.parse() (LLM_DEBUG_RAW_RESPONSE=true) =====\n" +
+                response.text +
+                "\n===== end raw response =====\n"
+            );
+
+        }
 
         let output: ExpansionLLMOutput;
 
@@ -380,15 +476,23 @@ export class AdventureBlueprintGenerator {
 
         const createdAt = new Date().toISOString();
 
-        const newNodes: StoryNode[] = output.nodes.map(node => ({
+        const newNodes: StoryNode[] = output.nodes.map(node => {
 
-            ...node,
+            const { effectsJson, ...rest } = node;
 
-            adventureId: input.adventureId,
+            return {
 
-            createdAt
+                ...rest,
 
-        }));
+                effects: this.parseEffectsJson(effectsJson, node.id),
+
+                adventureId: input.adventureId,
+
+                createdAt
+
+            };
+
+        });
 
         // Validate the NEW subtree as a self-contained graph, using
         // one of the entryChoices' targets as a synthetic root --

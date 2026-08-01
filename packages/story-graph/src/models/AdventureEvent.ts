@@ -26,6 +26,16 @@ export interface AdventureEvent {
     // chapter-end reflection/summary generation to reference.
     narrative: string;
 
+    // Correction pass: which character (if any) this event involved
+    // -- without this, EventScorer's continuity component (Section 4)
+    // cannot tell "child helped Luna" and "Luna trusts child with a
+    // task" are about the SAME character. Optional/additive; events
+    // with no specific target (explored, observed, etc.) leave this
+    // unset.
+    characterId?: string;
+
+    characterName?: string;
+
     // Part 5 (Emotion Engine): the node's emotional signature at the
     // time, so a rolling trend (e.g. frustration climbing) can be
     // computed without re-fetching every StoryNode visited.

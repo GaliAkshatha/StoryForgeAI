@@ -34,7 +34,7 @@ Grounding Knowledge (may say "none available"):
 {{knowledgeContext}}
 
 STRUCTURE RULES (follow exactly):
-- Produce between 10 and 16 StoryNodes total, forming a directed graph rooted at rootNodeId.
+- Produce between 6 and 10 StoryNodes total, forming a directed graph rooted at rootNodeId.
 - Every non-ending node has EXACTLY 4 choices.
 - Choices should regularly CONVERGE (multiple choices from different nodes pointing at the same nextNodeId) rather than always branching outward -- this keeps the graph a manageable size while still feeling like real choices matter. Do not build a pure tree.
 - End the chapter with 2-4 distinct ending nodes (isEnding: true, choices: [], each with a different endingType such as "triumphant", "bittersweet", "cliffhanger", "quiet-victory"). Every path through the graph must eventually reach one of these.
@@ -46,7 +46,7 @@ STRUCTURE RULES (follow exactly):
 CONTENT RULES:
 - Never preach. Never name the value out loud. Let situations and their consequences teach it.
 - If "About this child" is provided, use it to shape theme, vocabulary, characters, tone, and difficulty -- never refer back to it directly.
-- effects (per node) may be empty. When used, "type" must be one of: inventory.add, inventory.remove, relationship.delta, quest.start, quest.progress, quest.complete, quest.fail, economy.delta, flag.set, location.set.
+- effectsJson: a JSON-encoded STRING (not a nested object) containing an array of effects, e.g. effectsJson: "[{\"type\":\"flag.set\",\"payload\":{\"key\":\"metFox\",\"value\":true}}]". May be "[]" if there are no effects for this node. When used, each effect's "type" must be one of: inventory.add, inventory.remove, relationship.delta, quest.start, quest.progress, quest.complete, quest.fail, economy.delta, flag.set, location.set. Payload fields by type: inventory.add {itemId,name,quantity}, inventory.remove {itemId,quantity}, relationship.delta {characterId,characterName,trustDelta?,affinityDelta?}, quest.start {questId,title}, quest.progress {questId,progressDelta}, quest.complete {questId}, quest.fail {questId}, economy.delta {amount}, flag.set {key,value}, location.set {location}.
 - learningSignals: 0-2 short lowercase tags per node naming the value it touches, never shown to the child.
 - readingLevel should match the child's age range for every node.
 
@@ -87,7 +87,7 @@ Return EXACTLY this JSON shape (node/choice ids are your own short lowercase-wit
                 "excitement": 0, "curiosity": 0, "confidence": 0, "fear": 0,
                 "wonder": 0, "frustration": 0, "pride": 0, "calm": 0
             },
-            "effects": [],
+            "effectsJson": "[]",
             "difficulty": 1,
             "readingLevel": "",
             "isEnding": false,

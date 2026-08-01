@@ -2,15 +2,17 @@ import { DependencyContainer, AdventureRuntime } from "../index";
 import { LLMClient, LLMRequest, LLMResponse } from "@storyforge/llm-client";
 import { KnowledgeBase } from "@storyforge/knowledge-engine";
 
-// A tiny, structurally-valid 3-node graph: root -> mid -> ending.
-// Small on purpose (the real prompt's schema asks Gemini for 10-16
-// nodes, but that minimum lives in the responseSchema passed to the
-// provider, not in this codebase's own post-parse validation -- see
-// AdventureBlueprintGenerator.validateShape / GraphValidator, which
-// only require structural soundness, not a node count). Deliberately
-// small enough that EXPANSION_THRESHOLD (3) triggers on the very
-// first turn, so this test exercises both traversal and expansion.
-const BLUEPRINT_RESPONSE = JSON.stringify({
+// Correction pass (LLM-owned-topology removal): startAdventure() no
+// longer asks Gemini for a full node/edge topology. This fixture now
+// mirrors the ACTUAL two calls startAdventure() makes:
+//   1. AdventureMetadataGenerator -- small, creative, no topology.
+//   2. GeminiTextRenderer, via NarrationRenderingService, for the
+//      root node's own opening narration (root is always "rich").
+// InitialStoryBuilder itself (the deterministic structure step in
+// between) makes ZERO LLM calls -- see the "zero topology calls"
+// assertion below, which is the whole point of this architecture
+// change.
+const METADATA_RESPONSE = JSON.stringify({
 
     title: "The Whispering Wood",
 
@@ -18,9 +20,7 @@ const BLUEPRINT_RESPONSE = JSON.stringify({
 
     world: { setting: "forest", description: "An old, quiet forest." },
 
-    learningPlan: [{ skillFocus: "honesty", approach: "natural consequence" }],
-
-    emotionCurve: [{ label: "opening", excitement: 0.5, tension: 0.2 }],
+    learningPlan: [{ skillFocus: "leadership", approach: "natural consequence" }],
 
     genome: {
         theme: "friendship and honesty",
@@ -33,88 +33,7 @@ const BLUEPRINT_RESPONSE = JSON.stringify({
         vocabulary: "simple"
     },
 
-    rootNodeId: "root",
-
-    nodes: [
-
-        {
-            id: "root",
-            narrative: "You find a fox waiting at the treeline.",
-            choices: [
-                { id: "a", text: "Follow the fox", nextNodeId: "mid" },
-                { id: "b", text: "Wave hello", nextNodeId: "mid" },
-                { id: "c", text: "Sit and wait", nextNodeId: "mid" },
-                { id: "d", text: "Call out a name", nextNodeId: "mid" }
-            ],
-            learningSignals: ["curiosity"],
-            emotion: { excitement: 0.6, curiosity: 0.7, confidence: 0, fear: 0, wonder: 0.4, frustration: 0, pride: 0, calm: 0 },
-            effects: [],
-            difficulty: 1,
-            readingLevel: "beginner",
-            isEnding: false
-        },
-
-        {
-            id: "mid",
-            narrative: "The fox leads you to a fork in the path.",
-            choices: [
-                { id: "e", text: "Take the left path", nextNodeId: "ending" },
-                { id: "f", text: "Take the right path", nextNodeId: "ending" },
-                { id: "g", text: "Ask the fox which way", nextNodeId: "ending" },
-                { id: "h", text: "Turn back", nextNodeId: "ending" }
-            ],
-            learningSignals: [],
-            emotion: { excitement: 0.3, curiosity: 0.5, confidence: 0, fear: 0.1, wonder: 0.2, frustration: 0, pride: 0, calm: 0 },
-            effects: [
-                { type: "flag.set", payload: { key: "metFox", value: true } }
-            ],
-            difficulty: 1,
-            readingLevel: "beginner",
-            isEnding: false,
-            eventType: "asked_questions"
-        },
-
-        {
-            id: "ending",
-            narrative: "You reach a clearing bathed in golden light. The adventure's first chapter closes.",
-            choices: [],
-            learningSignals: [],
-            emotion: { excitement: 0.2, curiosity: 0, confidence: 0.4, fear: 0, wonder: 0.3, frustration: 0, pride: 0.5, calm: 0.6 },
-            effects: [],
-            difficulty: 1,
-            readingLevel: "beginner",
-            isEnding: true,
-            endingType: "quiet-victory"
-        }
-
-    ]
-
-});
-
-const EXPANSION_RESPONSE = JSON.stringify({
-
-    entryChoices: [
-        { id: "x", text: "Explore the glowing cave", nextNodeId: "ch-node1" },
-        { id: "y", text: "Return to the village", nextNodeId: "ch-node1" },
-        { id: "z", text: "Ask Fenn for advice", nextNodeId: "ch-node1" },
-        { id: "w", text: "Rest a while", nextNodeId: "ch-node1" }
-    ],
-
-    nodes: [
-        {
-            id: "ch-node1",
-            narrative: "A new path opens before you.",
-            choices: [],
-            learningSignals: [],
-            emotion: { excitement: 0.5, curiosity: 0.5, confidence: 0, fear: 0, wonder: 0.5, frustration: 0, pride: 0, calm: 0 },
-            effects: [],
-            difficulty: 1,
-            readingLevel: "beginner",
-            isEnding: true,
-            endingType: "cliffhanger",
-            eventType: "explored"
-        }
-    ]
+    premise: "a fox named Fenn waits quietly at the treeline"
 
 });
 
@@ -132,7 +51,7 @@ const REFLECTION_RESPONSE = JSON.stringify({
 
 const ANALYTICS_RESPONSE = JSON.stringify({
 
-    summary: "Showed curiosity by asking questions and exploring the new path."
+    summary: "Showed curiosity by engaging with the unfamiliar."
 
 });
 
@@ -142,19 +61,22 @@ const ANALYTICS_RESPONSE = JSON.stringify({
 // no live Gemini/Ollama access.
 class FakeLLMClient implements LLMClient {
 
-    calls: { prompt: string }[] = [];
+    calls: { prompt: string; purpose?: string }[] = [];
 
     async generate(request: LLMRequest): Promise<LLMResponse> {
 
-        this.calls.push({ prompt: request.prompt });
+        this.calls.push({ prompt: request.prompt, purpose: request.metadata?.purpose });
 
         let text: string;
 
-        if (request.prompt.includes("entryChoices")) {
-            text = EXPANSION_RESPONSE;
+        if (request.prompt.includes("\"premise\": \"\"")) {
+            // AdventureMetadataGenerator's distinguishing JSON-shape line.
+            text = METADATA_RESPONSE;
         }
-        else if (request.prompt.includes("Adventure Architect")) {
-            text = BLUEPRINT_RESPONSE;
+        else if (request.prompt.includes("You are a renderer")) {
+            // GeminiTextRenderer -- used for BOTH the root's opening
+            // narration and any "rich" frontier/expansion node.
+            text = "Something meaningful happens, rendered by the fake Gemini renderer.";
         }
         else if (request.prompt.includes("Reflection Agent")) {
             text = REFLECTION_RESPONSE;
@@ -190,15 +112,16 @@ async function main(): Promise<void> {
 
     const container = new DependencyContainer({ llmClient: fakeLLM });
 
-    // No live Ollama server exists in this environment -- the
-    // embedding-backed knowledge base isn't what this test is
-    // verifying, so it's swapped for a network-free fake.
     (container as unknown as { knowledgeBase: KnowledgeBase }).knowledgeBase =
         noNetworkKnowledgeBase();
 
     const runtime = new AdventureRuntime(container);
 
-    // --- startAdventure: exactly one AI call (the blueprint) ---
+    // --- startAdventure: exactly 2 calls, always -- metadata (1) +
+    // root narration (1, since root is hardcoded "rich"). Unlike the
+    // old architecture, this is NOT a range -- InitialStoryBuilder
+    // makes zero calls regardless of scoring/seed, so the total is
+    // deterministic. ---
 
     const started = await runtime.startAdventure({
 
@@ -217,18 +140,28 @@ async function main(): Promise<void> {
     });
 
     console.assert(
-        fakeLLM.calls.length === 1,
-        `Expected exactly 1 LLM call after startAdventure, got ${fakeLLM.calls.length}`
+        fakeLLM.calls.length === 2,
+        `Expected exactly 2 LLM calls after startAdventure (metadata + root narration), got ${fakeLLM.calls.length}`
     );
 
     console.assert(
-        started.narrative.includes("fox waiting"),
-        "Expected the opening narrative to come from the pre-generated root node"
+        fakeLLM.calls[0].purpose === "generate_adventure_metadata",
+        `Expected the first call to be metadata generation, got purpose='${fakeLLM.calls[0].purpose}'`
     );
 
     console.assert(
-        started.choices.length === 4,
-        `Expected 4 opening choices, got ${started.choices.length}`
+        fakeLLM.calls[1].purpose === "render_story_node",
+        `Expected the second call to be root narration, got purpose='${fakeLLM.calls[1].purpose}'`
+    );
+
+    console.assert(
+        started.narrative.length > 0,
+        "Expected the opening narrative to be non-empty (rendered from the deterministic premise)"
+    );
+
+    console.assert(
+        started.choices.length >= 1 && started.choices.length <= 3,
+        `Expected 1-3 opening choices (ChoiceCountPolicy caps at 3; fewer only if constraints genuinely left fewer valid candidates), got ${started.choices.length}`
     );
 
     console.assert(
@@ -236,124 +169,128 @@ async function main(): Promise<void> {
         "Expected the opening scene not to be an ending"
     );
 
-    // --- playTurn 1: root -> mid. Pure traversal (no blueprint/expansion
-    // call), but Reflection + Analytics still run (unchanged this phase)
-    // ---
+    // =========================================================
+    // Multi-turn chapter lifecycle (chapter-lifecycle correction
+    // pass). This REPLACES the old two-turn test, which encoded
+    // exactly the bug being fixed here: it asserted the first choice
+    // reaches a chapter-ending node. Under the corrected architecture,
+    // frontier nodes are NOT endings -- reaching one triggers
+    // progressive expansion (more frontier, or eventually a genuine
+    // ending once ChapterProgressionEngine.canEnd() is satisfied).
+    // This loop plays turns until a genuine ending is reached (with a
+    // safety cap so a bug can't hang the test forever), and asserts
+    // the chapter survives multiple real decisions before that
+    // happens -- directly covering Section K.2/K.3/K.5 and Section L
+    // (the "browser-product invariant": at least three player
+    // decisions without accidental chapter completion) in one
+    // realistic playthrough using the REAL AdventureRuntime,
+    // InitialStoryBuilder, DeterministicExpansionService, and
+    // ChapterProgressionEngine -- only the LLM boundary is mocked.
+    // =========================================================
 
-    const callsBeforeTurn1 = fakeLLM.calls.length;
+    const SAFETY_CAP = 15;
 
-    const turn1 = await runtime.playTurn({
+    let currentChoices = started.choices;
 
-        worldId: started.worldId,
+    let turnsPlayed = 0;
 
-        sessionId: started.sessionId,
+    let sawGenuineEnding = false;
 
-        childId: "child-1",
+    let analyticsCallCountAtEnd = 0;
 
-        childName: "Ari",
+    while (turnsPlayed < SAFETY_CAP) {
 
-        ageRange: "7-8",
+        console.assert(
+            currentChoices.length > 0,
+            `Expected the currently-shown node to always have choices to pick from (turn ${turnsPlayed}) -- zero choices with isEnding=false would mean expansion silently failed to produce anything`
+        );
 
-        selectedChoiceId: "a"
+        const callsBefore = fakeLLM.calls.length;
 
-    });
+        const next = await runtime.playTurn({
 
-    const turn1Calls = fakeLLM.calls.length - callsBeforeTurn1;
+            worldId: started.worldId,
 
-    // Because this tiny 3-node graph has only 1 non-ending node
-    // ("mid") reachable ahead of "mid" itself once we arrive there,
-    // EXPANSION_THRESHOLD (3) is crossed immediately, so this turn
-    // makes exactly 1 call: the expansion generation. "mid" is NOT
-    // an ending, so Reflection/Analytics do NOT run here (Part 3/4:
-    // they only run at chapter end) -- zero calls for
-    // narrative/choices themselves either way, which came from the
-    // pre-generated node.
+            sessionId: started.sessionId,
+
+            childId: "child-1",
+
+            childName: "Ari",
+
+            ageRange: "7-8",
+
+            selectedChoiceId: currentChoices[0].id
+
+        });
+
+        turnsPlayed++;
+
+        console.assert(
+            next.narrative.length > 0,
+            `Expected turn ${turnsPlayed}'s reached node to have non-empty rendered narrative`
+        );
+
+        if (next.isEnding) {
+
+            sawGenuineEnding = true;
+
+            analyticsCallCountAtEnd = fakeLLM.calls.length - callsBefore;
+
+            console.assert(
+                next.reflection !== undefined && next.analytics !== undefined,
+                `Expected reflection/analytics to be populated on the genuine-ending turn (turn ${turnsPlayed})`
+            );
+
+            console.assert(
+                next.choices.length === 0,
+                `Expected a genuine ending to have zero choices, got ${next.choices.length}`
+            );
+
+            break;
+
+        }
+
+        // NOT an ending -- this is the core assertion this whole
+        // test exists to prove: reaching a frontier node must NOT
+        // trigger chapter completion.
+        console.assert(
+            next.reflection === undefined && next.analytics === undefined,
+            `Expected reflection/analytics NOT to run on turn ${turnsPlayed} -- this node is a frontier, not a genuine ending`
+        );
+
+        currentChoices = next.choices;
+
+    }
+
     console.assert(
-        turn1Calls === 1,
-        `Expected exactly 1 LLM call on turn 1 (expansion only, no reflection/analytics on a non-ending turn), got ${turn1Calls}`
+        sawGenuineEnding,
+        `Expected a genuine ending to be reached within ${SAFETY_CAP} turns, got none -- chapter never concluded`
     );
 
     console.assert(
-        turn1.narrative.includes("fork in the path"),
-        "Expected turn 1's narrative to come from the pre-generated 'mid' node"
+        turnsPlayed >= 3,
+        `Expected at least 3 player decisions before the chapter concluded (Section L invariant), got ${turnsPlayed}`
     );
 
     console.assert(
-        turn1.worldUpdate.effects.some(e => e.type === "flag.set"),
-        "Expected the 'mid' node's flag.set effect to have been applied"
+        analyticsCallCountAtEnd === 2 || analyticsCallCountAtEnd === 3,
+        `Expected 2 (reflection+analytics) or 3 (+ one lazy render) LLM calls on the genuine-ending turn, got ${analyticsCallCountAtEnd}`
     );
+
+    // --- Zero topology LLM calls, still true across the whole
+    // multi-turn playthrough, not just startup. ---
 
     console.assert(
-        turn1.reflection === undefined && turn1.analytics === undefined,
-        "Expected reflection/analytics to be undefined on a non-chapter-ending turn"
+        fakeLLM.calls.every(call =>
+            !call.prompt.includes("rootNodeId") && !call.prompt.includes("nextNodeId")
+        ),
+        "Expected no LLM call, across the entire playthrough, to ever reference graph topology fields (rootNodeId/nextNodeId)"
     );
 
-    // --- playTurn 2: mid -> ending. The 'mid' node's choices were
-    // entirely REPLACED by expansion during turn 1 (its old e/f/g/h
-    // choices are gone -- that's the intended behavior of converting
-    // an ending into a junction), so this turn selects one of the
-    // new entryChoices ('x'/'y'/'z'/'w') instead.
-    // ---
-
-    const callsBeforeTurn2 = fakeLLM.calls.length;
-
-    const turn2 = await runtime.playTurn({
-
-        worldId: started.worldId,
-
-        sessionId: started.sessionId,
-
-        childId: "child-1",
-
-        childName: "Ari",
-
-        ageRange: "7-8",
-
-        selectedChoiceId: "x"
-
-    });
-
-    const turn2Calls = fakeLLM.calls.length - callsBeforeTurn2;
-
-    // 'ch-node1' IS an ending (chapter end), so Reflection + the
-    // Analytics explanation run here -- exactly 2 calls, and no
-    // expansion (the maybeExpandGraph check is skipped entirely for
-    // ending nodes).
-    console.assert(
-        turn2Calls === 2,
-        `Expected exactly 2 LLM calls on turn 2 (reflection + analytics explanation, no expansion), got ${turn2Calls}`
+    console.log(
+        `AdventureRuntime graph-traversal integration test passed ` +
+        `(${turnsPlayed} turns played before genuine ending).`
     );
-
-    console.assert(
-        turn2.isEnding,
-        "Expected turn 2 to land on an ending node"
-    );
-
-    console.assert(
-        turn2.narrative.includes("new path opens"),
-        "Expected turn 2's narrative to come from the expanded subtree's node"
-    );
-
-    console.assert(
-        turn2.reflection !== undefined && turn2.analytics !== undefined,
-        "Expected reflection/analytics to be populated on the chapter-ending turn"
-    );
-
-    // The two events recorded so far ("asked_questions" from 'mid',
-    // "explored" from 'ch-node1') should have been scored
-    // deterministically -- verifying the actual math ran, not just
-    // that the LLM explanation call happened.
-    console.assert(
-        turn2.analytics!.skillSignals.some(s => s.skill === "curiosity"),
-        `Expected a deterministically-scored 'curiosity' signal from the recorded events, got: ${JSON.stringify(turn2.analytics!.skillSignals)}`
-    );
-
-    console.assert(
-        turn2.analytics!.summary === "Showed curiosity by asking questions and exploring the new path.",
-        "Expected the analytics summary to be exactly what the (fake) LLM explanation returned, unmodified"
-    );
-
-    console.log("AdventureRuntime graph-traversal integration test passed.");
 
 }
 

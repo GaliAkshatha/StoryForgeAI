@@ -1,5 +1,6 @@
 import { StateEffect } from "@storyforge/simulation-engine";
 import { AdventureEventType } from "@storyforge/shared";
+import { RenderRequest } from "@storyforge/llm-client";
 import { StoryChoice } from "./StoryChoice";
 import { EmotionProfile } from "./EmotionProfile";
 
@@ -14,7 +15,22 @@ export interface StoryNode {
 
     adventureId: string;
 
+    // Correction pass (Section 3, lazy narration): "" means this
+    // node's STRUCTURE (effects/emotion/choices) is already decided
+    // and persisted, but its PROSE has not been rendered yet --
+    // see pendingRenderRequest. Nodes from the initial blueprint /
+    // AdventureBlueprintGenerator.expandFrom() (untouched this pass)
+    // always have narrative populated eagerly, same as before;
+    // DeterministicExpansionService is the only producer of nodes
+    // that start empty.
     narrative: string;
+
+    // Present only while narrative is still "". Everything a
+    // TextRenderer needs to eventually render this node, computed
+    // once at structural-decision time and persisted so rendering
+    // can happen later without re-deriving anything (Property F:
+    // canonical event/state data exists independently of narration).
+    pendingRenderRequest?: RenderRequest;
 
     choices: StoryChoice[];
 
@@ -50,6 +66,37 @@ export interface StoryNode {
     // turn. Undefined means this node isn't a notable event (e.g.
     // ambient narrative beats between decision points).
     eventType?: AdventureEventType;
+
+    // Correction pass (Section 2/4): the SAME character the
+    // candidate event targeted, if any -- carried through so
+    // AdventureRuntime can log an accurate AdventureEvent.characterId
+    // without re-deriving/re-guessing which NPC was involved.
+    targetCharacterId?: string;
+
+    targetCharacterName?: string;
+
+    // Phase 2A: the SemanticEvent's consequence/factEstablished
+    // content, persisted on the node itself so
+    // NarrativeStateTransition.apply() can update NarrativeState
+    // deterministically WHEN this node is actually visited -- never
+    // when it's merely generated as one of several unvisited
+    // sibling choices (Section 9/10: unvisited branches must not
+    // mutate played state).
+    narrativeConsequence?: string;
+
+    // Phase 2B (Section B): set ONLY when this event explicitly
+    // introduces a character into the active scene -- the ONLY
+    // signal NarrativeStateTransition uses to grow
+    // activeCharacterIds. Distinct from targetCharacterId/Name
+    // (which identifies who an event was directed at, and does NOT
+    // by itself imply introduction).
+    characterIntroducedId?: string;
+
+    characterIntroducedName?: string;
+
+    threadIntroduced?: string;
+
+    threadResolved?: string;
 
     isEnding: boolean;
 

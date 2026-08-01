@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@storyforge/agent-sdk": "workspace:*",
+    "@storyforge/shared": "workspace:*",
     "@storyforge/llm-client": "workspace:*",
     "@storyforge/prompt-manager": "workspace:*",
     "dotenv": "^17.4.2"

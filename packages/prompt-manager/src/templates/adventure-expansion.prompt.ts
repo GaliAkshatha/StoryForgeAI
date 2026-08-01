@@ -56,7 +56,7 @@ STRUCTURE RULES:
 - This chapter must close: end with 2-4 distinct ending nodes (isEnding: true, choices: [], varied endingType). Every path must reach one.
 - No dangling edges, no orphan nodes -- every choice's nextNodeId (including entryChoices') must resolve to a node id you generated in this response.
 
-CONTENT RULES: same as before -- never preach, never name the value, personalize via "about this child" without referring to it directly, effects use the same taxonomy (inventory.add/remove, relationship.delta, quest.*, economy.delta, flag.set, location.set), 0-2 learningSignals tags per node, readingLevel matches the child's age. Tag eventType (helped_npc, ignored_warning, solved_puzzle, asked_questions, shared_resources, led_team, failed_puzzle, retried, explored, observed) on notable nodes, omit it on connective narration.
+CONTENT RULES: same as before -- never preach, never name the value, personalize via "about this child" without referring to it directly, effectsJson is a JSON-encoded STRING (e.g. "[]" or "[{\"type\":\"flag.set\",\"payload\":{\"key\":\"x\",\"value\":true}}]") using the same taxonomy (inventory.add/remove, relationship.delta, quest.*, economy.delta, flag.set, location.set), 0-2 learningSignals tags per node, readingLevel matches the child's age. Tag eventType (helped_npc, ignored_warning, solved_puzzle, asked_questions, shared_resources, led_team, failed_puzzle, retried, explored, observed) on notable nodes, omit it on connective narration.
 
 Return EXACTLY this JSON shape.
 
@@ -76,7 +76,7 @@ Return EXACTLY this JSON shape.
                 "excitement": 0, "curiosity": 0, "confidence": 0, "fear": 0,
                 "wonder": 0, "frustration": 0, "pride": 0, "calm": 0
             },
-            "effects": [],
+            "effectsJson": "[]",
             "difficulty": 1,
             "readingLevel": "",
             "isEnding": false,

@@ -102,7 +102,11 @@ export class AppContainer {
 
     readonly adventures: AdventureRuntime;
 
-    readonly storyWorkflow: WorkflowRuntime;
+    // Phase O: no longer constructed by default -- see the
+    // constructor for why. Optional so nothing else needs to change;
+    // any future caller that wants it can construct it directly from
+    // `this.ai`'s already-available agent instances.
+    readonly storyWorkflow?: WorkflowRuntime;
 
     readonly prisma?: PrismaClient;
 
@@ -236,19 +240,18 @@ export class AppContainer {
 
         });
 
-        this.storyWorkflow = new WorkflowRuntime(
-
-            this.ai.requirementAgent,
-
-            this.ai.plannerAgent,
-
-            this.ai.researchAgent,
-
-            this.ai.storyAgent,
-
-            this.ai.criticAgent
-
-        );
+        // Phase O (deprecation): storyWorkflow (RequirementAgent ->
+        // PlannerAgent -> ResearchAgent -> StoryAgent -> CriticAgent,
+        // the original linear content-generation pipeline) is no
+        // longer constructed here. The audit confirmed zero API
+        // routes ever call .run() on it -- it was entirely
+        // superseded by the graph-based AdventureRuntime. The
+        // classes themselves are NOT deleted (real, tested code;
+        // deleting without a clear future-use decision would be
+        // premature per this migration's constraints) -- only
+        // removed from the active composition root. To reinstate:
+        // `this.storyWorkflow = new WorkflowRuntime(this.ai.requirementAgent, ...)`,
+        // same as before.
 
     }
 

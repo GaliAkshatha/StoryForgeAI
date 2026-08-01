@@ -61,7 +61,37 @@ export class GraphLoader {
 
         const rootNode = nodes.find(node => node.id === adventure.rootNodeId)!;
 
-        return { adventure, rootNode };
+        // Phase 2A: serialized graphs predate NarrativeState -- a
+        // conservative default derived from what's actually
+        // available here (no fabricated precision), matching the
+        // same "first character becomes active, premise becomes the
+        // problem" derivation InitialStoryBuilder uses for brand new
+        // adventures.
+        return {
+
+            adventure,
+
+            rootNode,
+
+            narrativeState: {
+
+                location: adventure.world?.setting ?? "the story",
+
+                activeCharacterIds: adventure.characters[0] ? [adventure.characters[0].id] : [],
+
+                currentGoal: "continue the adventure",
+
+                currentProblem: adventure.premise,
+
+                establishedFacts: adventure.premise ? [adventure.premise] : [],
+
+                unresolvedThreads: [],
+
+                recentEventTypes: []
+
+            }
+
+        };
 
     }
 

@@ -140,10 +140,13 @@ export const ADVENTURE_BLUEPRINT_SCHEMA = {
 
             type: "ARRAY",
 
-            minItems: "10",
-
-            maxItems: "16",
-
+            // minItems/maxItems removed entirely (previously "6"/
+            // "10", before that "10"/"16") -- the first reduction
+            // alone did NOT resolve the live "too many states for
+            // serving" 400. Array length bounds are explicitly named
+            // in Google's own error message as a typical cause;
+            // node count is now enforced only via the prompt text's
+            // plain-language instruction, not the schema.
             items: {
 
                 type: "OBJECT",
@@ -217,27 +220,26 @@ export const ADVENTURE_BLUEPRINT_SCHEMA = {
 
                     },
 
-                    effects: {
-
-                        type: "ARRAY",
-
-                        items: {
-
-                            type: "OBJECT",
-
-                            properties: {
-
-                                type: { type: "STRING" },
-
-                                payload: { type: "OBJECT" }
-
-                            },
-
-                            required: ["type", "payload"]
-
-                        }
-
-                    },
+                    // Was a nested ARRAY of OBJECTs, each with a
+                    // `payload` object carrying up to 14 optional
+                    // properties. That bounded-but-optional-heavy
+                    // redesign did NOT resolve the live 400 either --
+                    // optional properties on a repeated nested object
+                    // are exactly the kind of thing that multiplies a
+                    // constrained-decoding automaton's state count
+                    // (the decoder has to track which subset of
+                    // fields has been emitted at every position,
+                    // across every array element). Collapsed to a
+                    // single STRING per node: the model writes a
+                    // JSON-encoded StateEffect[] array as text, which
+                    // AdventureBlueprintGenerator parses after the
+                    // fact (see effectsJson handling in
+                    // AdventureBlueprintGenerator.ts). This removes
+                    // the nested array-of-objects from the SCHEMA
+                    // entirely -- Gemini's constrained decoding only
+                    // has to enforce "valid string," not "valid
+                    // object shape, optionally, repeated."
+                    effectsJson: { type: "STRING" },
 
                     difficulty: { type: "NUMBER" },
 
@@ -253,7 +255,7 @@ export const ADVENTURE_BLUEPRINT_SCHEMA = {
 
                 required: [
                     "id", "narrative", "choices", "learningSignals", "emotion",
-                    "effects", "difficulty", "readingLevel", "isEnding"
+                    "effectsJson", "difficulty", "readingLevel", "isEnding"
                 ]
 
             }

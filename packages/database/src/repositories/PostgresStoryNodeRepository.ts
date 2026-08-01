@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 import {
     StoryNode,
@@ -8,6 +8,8 @@ import {
 } from "@storyforge/story-graph";
 
 import { StateEffect } from "@storyforge/simulation-engine";
+import { AdventureEventType } from "@storyforge/shared";
+import { RenderRequest } from "@storyforge/llm-client";
 
 interface StoryNodeRow {
 
@@ -32,6 +34,29 @@ interface StoryNodeRow {
     isEnding: boolean;
 
     endingType: string | null;
+
+    eventType: string | null;
+
+    targetCharacterId: string | null;
+
+    targetCharacterName: string | null;
+
+    narrativeConsequence: string | null;
+
+    characterIntroducedId: string | null;
+
+    characterIntroducedName: string | null;
+
+    threadIntroduced: string | null;
+
+    threadResolved: string | null;
+
+    // A nullable Json column reads back as Prisma.JsonValue | null --
+    // never plain `unknown`, and never undefined (Prisma always
+    // returns a real row field on a SELECT, it just may be SQL
+    // NULL). Matches how the column is declared in schema.prisma
+    // (`pendingRenderRequest Json?`, no default).
+    pendingRenderRequest: Prisma.JsonValue | null;
 
     createdAt: Date;
 
@@ -142,6 +167,26 @@ export class PostgresStoryNodeRepository implements StoryNodeRepository {
 
             endingType: node.endingType ?? null,
 
+            eventType: node.eventType ?? null,
+
+            targetCharacterId: node.targetCharacterId ?? null,
+
+            targetCharacterName: node.targetCharacterName ?? null,
+
+            pendingRenderRequest: node.pendingRenderRequest
+                ? (node.pendingRenderRequest as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+
+            narrativeConsequence: node.narrativeConsequence ?? null,
+
+            characterIntroducedId: node.characterIntroducedId ?? null,
+
+            characterIntroducedName: node.characterIntroducedName ?? null,
+
+            threadIntroduced: node.threadIntroduced ?? null,
+
+            threadResolved: node.threadResolved ?? null,
+
             createdAt: new Date(node.createdAt)
 
         };
@@ -175,6 +220,26 @@ export class PostgresStoryNodeRepository implements StoryNodeRepository {
             isEnding: record.isEnding,
 
             endingType: record.endingType ?? undefined,
+
+            eventType: (record.eventType ?? undefined) as AdventureEventType | undefined,
+
+            targetCharacterId: record.targetCharacterId ?? undefined,
+
+            targetCharacterName: record.targetCharacterName ?? undefined,
+
+            pendingRenderRequest: record.pendingRenderRequest !== null
+                ? (record.pendingRenderRequest as unknown as RenderRequest)
+                : undefined,
+
+            narrativeConsequence: record.narrativeConsequence ?? undefined,
+
+            characterIntroducedId: record.characterIntroducedId ?? undefined,
+
+            characterIntroducedName: record.characterIntroducedName ?? undefined,
+
+            threadIntroduced: record.threadIntroduced ?? undefined,
+
+            threadResolved: record.threadResolved ?? undefined,
 
             createdAt: record.createdAt.toISOString()
 

@@ -82,12 +82,34 @@ import {
     InMemoryAchievementRepository,
     DerivedStoryEdgeRepository,
     AdventureBlueprintGenerator,
+    AdventureMetadataGenerator,
+    InitialStoryBuilder,
     AdventureCompiler,
     GraphTraversalEngine,
     EmotionTrendService,
-    EmotionTracker
+    EmotionTracker,
+    CandidateEventGenerator,
+    ConstraintEngine,
+    EventScorer,
+    SemanticEventBuilder,
+    MemoryRetrievalService,
+    DeterministicExpansionService,
+    NarrationRenderingService,
+    NarrativeQualityGate,
+    ChapterProgressionEngine,
+    NarrativeStateTransition,
+    ChoiceCountPolicy
 
 } from "@storyforge/story-graph";
+
+import {
+
+    TextRenderer,
+    TemplateTextRenderer,
+    GeminiTextRenderer,
+    LanguageRouter
+
+} from "@storyforge/llm-client";
 
 import {
 
@@ -209,7 +231,14 @@ export class DependencyContainer {
 
     readonly storyEdgeRepository: StoryEdgeRepository;
 
+    // @deprecated no longer wired into adventureCompiler -- see the
+    // class's own @deprecated comment. Still constructed for
+    // external-compatibility reasons.
     readonly adventureBlueprintGenerator: AdventureBlueprintGenerator;
+
+    readonly adventureMetadataGenerator: AdventureMetadataGenerator;
+
+    readonly initialStoryBuilder: InitialStoryBuilder;
 
     readonly adventureCompiler: AdventureCompiler;
 
@@ -221,6 +250,42 @@ export class DependencyContainer {
     readonly emotionTrendService: EmotionTrendService;
 
     readonly emotionTracker: EmotionTracker;
+
+    // Phases B-M: the deterministic candidate-generation ->
+    // constraint-filtering -> scoring -> semantic-event -> language
+    // pipeline that replaced AdventureBlueprintGenerator.expandFrom()
+    // for ongoing chapter expansion.
+    readonly candidateEventGenerator: CandidateEventGenerator;
+
+    readonly constraintEngine: ConstraintEngine;
+
+    readonly eventScorer: EventScorer;
+
+    readonly semanticEventBuilder: SemanticEventBuilder;
+
+    readonly memoryRetrievalService: MemoryRetrievalService;
+
+    readonly templateTextRenderer: TemplateTextRenderer;
+
+    readonly languageRouter: TextRenderer;
+
+    readonly choiceCountPolicy: ChoiceCountPolicy;
+
+    readonly deterministicExpansionService: DeterministicExpansionService;
+
+    // Section 3 (correction pass): renders a node's narrative lazily,
+    // exactly once, only when the child actually reaches it.
+    readonly narrativeQualityGate: NarrativeQualityGate;
+
+    readonly narrationRenderingService: NarrationRenderingService;
+
+    // Section C: deterministic chapter phase/ending-eligibility
+    // policy. No LLM, no direct graph mutation -- AdventureRuntime
+    // only ever asks it questions.
+    readonly chapterProgressionEngine: ChapterProgressionEngine;
+
+    // Phase 2A: the only thing allowed to mutate NarrativeState.
+    readonly narrativeStateTransition: NarrativeStateTransition;
 
     constructor(
         config: DependencyContainerConfig
@@ -414,12 +479,6 @@ export class DependencyContainer {
 
         this.adventureBlueprintGenerator = new AdventureBlueprintGenerator(ai);
 
-        this.adventureCompiler = new AdventureCompiler(
-            this.adventureBlueprintGenerator,
-            this.adventureRepository,
-            this.storyNodeRepository
-        );
-
         this.graphTraversalEngine = new GraphTraversalEngine(this.storyNodeRepository);
 
         this.deterministicAnalyticsEngine = new DeterministicAnalyticsEngine();
@@ -427,6 +486,67 @@ export class DependencyContainer {
         this.emotionTrendService = new EmotionTrendService();
 
         this.emotionTracker = new EmotionTracker(this.emotionRepository, this.emotionTrendService);
+
+        this.candidateEventGenerator = new CandidateEventGenerator();
+
+        this.constraintEngine = new ConstraintEngine();
+
+        this.eventScorer = new EventScorer();
+
+        this.semanticEventBuilder = new SemanticEventBuilder();
+
+        this.memoryRetrievalService = new MemoryRetrievalService();
+
+        this.templateTextRenderer = new TemplateTextRenderer();
+
+        this.languageRouter = new LanguageRouter(
+            this.templateTextRenderer,
+            new GeminiTextRenderer(this.llm)
+        );
+
+        this.choiceCountPolicy = new ChoiceCountPolicy();
+
+        this.deterministicExpansionService = new DeterministicExpansionService(
+            this.candidateEventGenerator,
+            this.constraintEngine,
+            this.eventScorer,
+            this.memoryRetrievalService,
+            this.semanticEventBuilder,
+            this.choiceCountPolicy
+        );
+
+        this.chapterProgressionEngine = new ChapterProgressionEngine();
+
+        this.narrativeStateTransition = new NarrativeStateTransition();
+
+        this.narrativeQualityGate = new NarrativeQualityGate();
+
+        this.narrationRenderingService = new NarrationRenderingService(
+            this.languageRouter,
+            this.storyNodeRepository,
+            this.narrativeQualityGate,
+            this.templateTextRenderer
+        );
+
+        // Correction pass: AdventureCompiler now composes a small
+        // metadata call + the deterministic expansion pipeline
+        // (already built above) instead of AdventureBlueprintGenerator's
+        // single large call. adventureBlueprintGenerator is still
+        // constructed (see above) for compatibility, but is no
+        // longer wired into the compilation pipeline -- see its
+        // class-level @deprecated comment.
+        this.adventureMetadataGenerator = new AdventureMetadataGenerator(ai);
+
+        this.initialStoryBuilder = new InitialStoryBuilder(
+            this.deterministicExpansionService
+        );
+
+        this.adventureCompiler = new AdventureCompiler(
+            this.adventureMetadataGenerator,
+            this.initialStoryBuilder,
+            this.adventureRepository,
+            this.storyNodeRepository
+        );
 
     }
 }

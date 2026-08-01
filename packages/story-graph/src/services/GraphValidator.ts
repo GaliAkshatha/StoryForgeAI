@@ -49,13 +49,19 @@ export class GraphValidator {
 
             }
 
-            if (!node.isEnding && node.choices.length === 0) {
-
-                errors.push(
-                    `Node '${node.id}' is not an ending but has no choices -- dead end.`
-                );
-
-            }
+            // Section D: a non-ending node with zero choices is now a
+            // legitimate FRONTIER node -- "not expanded yet," not "dead
+            // end." Three valid shapes exist for a StoryNode:
+            //   1. isEnding=true,  choices=[]   -- genuine ending
+            //   2. isEnding=false, choices=[]   -- expandable frontier
+            //   3. isEnding=false, choices>0    -- already-expanded, playable
+            // Only shape (1) with choices>0 is ever invalid (checked
+            // above). AdventureRuntime.maybeExpandGraph() is what
+            // converts shape 2 into shape 2 (deeper frontier) or shape
+            // 1 (genuine ending) the moment a frontier is actually
+            // reached -- GraphValidator runs at construction time,
+            // when freshly-built frontier nodes are EXPECTED to be in
+            // shape 2, not a bug to catch.
 
             for (const choice of node.choices) {
 

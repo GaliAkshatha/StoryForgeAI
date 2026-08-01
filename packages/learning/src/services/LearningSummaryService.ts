@@ -57,7 +57,9 @@ export class LearningSummaryService {
 
             prompt,
 
-            responseFormat: "json"
+            responseFormat: "json",
+
+            metadata: { caller: "LearningSummaryService", purpose: "summarize_weekly_trend" }
 
         });
 

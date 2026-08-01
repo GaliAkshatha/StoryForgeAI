@@ -76,27 +76,13 @@ const NODE_SCHEMA = {
 
         },
 
-        effects: {
-
-            type: "ARRAY",
-
-            items: {
-
-                type: "OBJECT",
-
-                properties: {
-
-                    type: { type: "STRING" },
-
-                    payload: { type: "OBJECT" }
-
-                },
-
-                required: ["type", "payload"]
-
-            }
-
-        },
+        // Collapsed to a single JSON-encoded STRING -- see
+        // adventureBlueprintSchema.ts for why (a nested array of
+        // objects with many optional properties, repeated per node,
+        // is exactly what multiplies a constrained-decoding
+        // automaton's state count; a string field removes that
+        // nested structure from the schema entirely).
+        effectsJson: { type: "STRING" },
 
         difficulty: { type: "NUMBER" },
 
@@ -112,7 +98,7 @@ const NODE_SCHEMA = {
 
     required: [
         "id", "narrative", "choices", "learningSignals", "emotion",
-        "effects", "difficulty", "readingLevel", "isEnding"
+        "effectsJson", "difficulty", "readingLevel", "isEnding"
     ]
 
 };
@@ -154,10 +140,6 @@ export const ADVENTURE_EXPANSION_SCHEMA = {
         nodes: {
 
             type: "ARRAY",
-
-            minItems: "6",
-
-            maxItems: "10",
 
             items: NODE_SCHEMA
 

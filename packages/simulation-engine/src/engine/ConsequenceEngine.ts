@@ -1,3 +1,12 @@
+// @deprecated Phase O (deterministic-first migration audit): unreachable
+// from any live route -- AdventureRuntime never calls resolve() or
+// openAdventure(). Predecessor to the current Story Graph runtime's
+// per-turn generation model, superseded first by graph traversal
+// (v3) and now by DeterministicExpansionService's candidate/
+// constraint/scoring pipeline for ongoing expansion. Kept, not
+// deleted, since simulation-engine's DeterministicSimulator (which
+// this class also uses) is very much still live.
+
 import { JsonParser } from "@storyforge/llm-client";
 
 import { WorldState } from "../models/WorldState";
@@ -10,6 +19,9 @@ import { DeterministicSimulator } from "./DeterministicSimulator";
 import { AIServices } from "../services/AIServices";
 
 const REQUIRED_CHOICE_COUNT = 4;
+
+// See GeminiClient for why this is opt-in.
+const DEBUG_RAW_RESPONSE = process.env.LLM_DEBUG_RAW_RESPONSE === "true";
 
 // The shape both prompts ("opening" and "consequence") are required
 // to return. The LLM is only ever allowed to respond with this --
@@ -97,7 +109,49 @@ const CONSEQUENCE_RESPONSE_SCHEMA = {
 
                     type: { type: "STRING" },
 
-                    payload: { type: "OBJECT" }
+                    // See adventureBlueprintSchema.ts -- a bare
+                    // `{ type: "OBJECT" }` caused a live Gemini 400
+                    // ("too many states for serving"). Same bounded
+                    // replacement for consistency, even though this
+                    // schema is dead code (ConsequenceEngine is
+                    // unreachable from any live route).
+                    payload: {
+
+                        type: "OBJECT",
+
+                        properties: {
+
+                            itemId: { type: "STRING" },
+
+                            name: { type: "STRING" },
+
+                            quantity: { type: "NUMBER" },
+
+                            characterId: { type: "STRING" },
+
+                            characterName: { type: "STRING" },
+
+                            trustDelta: { type: "NUMBER" },
+
+                            affinityDelta: { type: "NUMBER" },
+
+                            questId: { type: "STRING" },
+
+                            title: { type: "STRING" },
+
+                            progressDelta: { type: "NUMBER" },
+
+                            amount: { type: "NUMBER" },
+
+                            key: { type: "STRING" },
+
+                            value: { type: "BOOLEAN" },
+
+                            location: { type: "STRING" }
+
+                        }
+
+                    }
 
                 },
 
@@ -215,19 +269,28 @@ export class ConsequenceEngine {
 
             responseFormat: "json",
 
-            responseSchema: CONSEQUENCE_RESPONSE_SCHEMA
+            responseSchema: CONSEQUENCE_RESPONSE_SCHEMA,
+
+            metadata: { caller: "ConsequenceEngine", purpose: "resolve_consequence" }
 
         });
 
         // Explicit, unconditional log of the raw model output right
         // before it's handed to JsonParser -- if parsing fails below,
         // this line (not just the thrown error's truncated snippet)
-        // is what makes the failure diagnosable.
-        console.log(
-            "\n===== ConsequenceEngine: raw LLM response before JsonParser.parse() =====\n" +
-            response.text +
-            "\n===== end raw response =====\n"
-        );
+        // is what makes the failure diagnosable. Gated the same way
+        // as GeminiClient's raw-response log: opt-in only, since
+        // dumping generated content by default is noisy and can
+        // expose user-derived text.
+        if (DEBUG_RAW_RESPONSE) {
+
+            console.log(
+                "\n===== ConsequenceEngine: raw LLM response before JsonParser.parse() (LLM_DEBUG_RAW_RESPONSE=true) =====\n" +
+                response.text +
+                "\n===== end raw response =====\n"
+            );
+
+        }
 
         let llmOutput: ConsequenceLLMOutput;
 

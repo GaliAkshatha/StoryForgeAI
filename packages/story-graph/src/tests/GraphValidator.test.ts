@@ -118,20 +118,26 @@ function main(): void {
         "Expected an ending-node-with-choices error to be reported"
     );
 
-    // --- Non-ending node with no choices (dead end) ---
+    // --- Non-ending node with no choices is now a legitimate
+    // FRONTIER node (Section D correction pass), NOT a dead end. This
+    // replaces a stale assertion that used to require the opposite --
+    // "not an ending but has no choices" used to be treated as a bug
+    // signature, but that was exactly the root cause of the
+    // one-turn-ending bug: every unexpanded frontier node
+    // legitimately looks like this until AdventureRuntime.
+    // maybeExpandGraph() reaches and expands it. ---
 
-    const deadEndNodes: StoryNode[] = [
+    const frontierNodes: StoryNode[] = [
 
         node("root", [])
 
     ];
 
-    const deadEndResult = validator.validate(deadEndNodes, "root");
+    const frontierResult = validator.validate(frontierNodes, "root");
 
     console.assert(
-        !deadEndResult.valid &&
-        deadEndResult.errors.some(e => e.includes("dead end")),
-        "Expected a dead-end error to be reported"
+        frontierResult.valid,
+        `Expected a non-ending node with zero choices to be a VALID frontier, got errors: ${frontierResult.errors.join(", ")}`
     );
 
     // --- Missing root ---

@@ -45,7 +45,9 @@ export class ReflectionAgent extends BaseAgent<
 
             prompt,
 
-            responseFormat: "json"
+            responseFormat: "json",
+
+            metadata: { caller: "ReflectionAgent", purpose: "generate_reflection" }
 
         });
 

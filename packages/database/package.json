@@ -21,6 +21,7 @@
     "@storyforge/learning": "workspace:*",
     "@storyforge/simulation-engine": "workspace:*",
     "@storyforge/story-graph": "workspace:*",
+    "@storyforge/llm-client": "workspace:*",
     "@storyforge/shared": "workspace:*"
   },
   "devDependencies": {

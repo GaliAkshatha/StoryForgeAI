@@ -1,11 +1,20 @@
-import { GoogleGenAI, Schema } from "@google/genai";
+import { GoogleGenAI, Schema, ApiError } from "@google/genai";
 
 import { LLMClient } from "../interfaces/LLMClient";
 import { LLMConfig } from "../config/LLMConfig";
 import { LLMRequest } from "../models/LLMRequest";
 import { LLMResponse } from "../models/LLMResponse";
+import { llmInstrumentation } from "../instrumentation/LLMInstrumentation";
 
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+
+// Raw response content is only ever printed when explicitly opted
+// into -- dumping every generated JSON response by default is noisy
+// and can expose generated/user-derived content (a parent's own
+// words, a child's name, etc.) in logs. Set
+// LLM_DEBUG_RAW_RESPONSE=true locally when actually debugging a
+// parse failure.
+const DEBUG_RAW_RESPONSE = process.env.LLM_DEBUG_RAW_RESPONSE === "true";
 
 export class GeminiClient implements LLMClient {
 
@@ -25,12 +34,16 @@ export class GeminiClient implements LLMClient {
         request: LLMRequest
     ): Promise<LLMResponse> {
 
+        const model = this.config.model || DEFAULT_GEMINI_MODEL;
+
+        const startedAt = Date.now();
+
         try {
 
             const response =
                 await this.client.models.generateContent({
 
-                    model: this.config.model || DEFAULT_GEMINI_MODEL,
+                    model,
 
                     contents: request.prompt,
 
@@ -65,16 +78,52 @@ export class GeminiClient implements LLMClient {
 
             const text = response.text ?? "";
 
-            if (request.responseFormat === "json") {
+            const latencyMs = Date.now() - startedAt;
 
-                // Always visible, not just on parse failure -- the
-                // failure happens one layer up (JsonParser, called by
-                // the agent/engine), so by the time something there
-                // logs a parse error, having the exact raw text that
-                // caused it already in the log is what actually makes
-                // it debuggable.
+            // Only ever populated from what Gemini actually reports --
+            // never estimated from character counts.
+            const usageMetadata = response.usageMetadata;
+
+            const usage = usageMetadata ? {
+
+                promptTokens: usageMetadata.promptTokenCount ?? 0,
+
+                completionTokens: usageMetadata.candidatesTokenCount ?? 0,
+
+                totalTokens: usageMetadata.totalTokenCount ?? 0
+
+            } : undefined;
+
+            llmInstrumentation.recordSuccess({
+
+                caller: request.metadata?.caller,
+
+                purpose: request.metadata?.purpose,
+
+                model,
+
+                promptChars: request.prompt.length,
+
+                systemPromptChars: request.systemPrompt?.length ?? 0,
+
+                maxOutputTokens: request.maxTokens,
+
+                responseChars: text.length,
+
+                latencyMs,
+
+                inputTokens: usageMetadata?.promptTokenCount,
+
+                outputTokens: usageMetadata?.candidatesTokenCount,
+
+                totalTokens: usageMetadata?.totalTokenCount
+
+            });
+
+            if (DEBUG_RAW_RESPONSE && request.responseFormat === "json") {
+
                 console.log(
-                    "\n===== GEMINI RAW JSON RESPONSE =====\n" + text
+                    "\n===== GEMINI RAW JSON RESPONSE (LLM_DEBUG_RAW_RESPONSE=true) =====\n" + text
                 );
 
             }
@@ -83,18 +132,48 @@ export class GeminiClient implements LLMClient {
 
                 text,
 
-                model: this.config.model || DEFAULT_GEMINI_MODEL,
+                model,
 
-                finishReason: "STOP"
+                finishReason: "STOP",
+
+                usage
 
             };
 
         }
         catch (error) {
 
-            console.error("\n===== GEMINI ERROR =====\n");
+            const latencyMs = Date.now() - startedAt;
 
-            console.dir(error, { depth: null });
+            const status = error instanceof ApiError ? error.status : undefined;
+
+            llmInstrumentation.recordFailure({
+
+                caller: request.metadata?.caller,
+
+                purpose: request.metadata?.purpose,
+
+                model,
+
+                promptChars: request.prompt.length,
+
+                systemPromptChars: request.systemPrompt?.length ?? 0,
+
+                maxOutputTokens: request.maxTokens,
+
+                latencyMs,
+
+                status
+
+            });
+
+            console.error(
+
+                "\n===== GEMINI ERROR =====\n" +
+                `message: ${error instanceof Error ? error.message : String(error)}\n` +
+                `status: ${status ?? "n/a"}\n`
+
+            );
 
             throw error;
 

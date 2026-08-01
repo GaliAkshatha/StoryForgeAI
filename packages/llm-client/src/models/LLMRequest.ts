@@ -22,4 +22,17 @@ export interface LLMRequest {
     // valid JSON -- responseFormat alone does not.
     responseSchema?: unknown;
 
+    // Observability only -- never read by any provider to change
+    // behavior. Optional so every existing call site keeps compiling
+    // unchanged; callers that want their LLM usage attributed in the
+    // instrumentation log/aggregate stats (see
+    // instrumentation/LLMInstrumentation.ts) can supply it.
+    metadata?: {
+
+        caller?: string;
+
+        purpose?: string;
+
+    };
+
 }

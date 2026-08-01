@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 import {
     WorldState,
@@ -7,7 +7,9 @@ import {
     RelationshipStatus,
     QuestState,
     EconomyState,
-    Choice
+    Choice,
+    ChapterState,
+    NarrativeState
 } from "@storyforge/simulation-engine";
 
 interface WorldStateRow {
@@ -37,6 +39,17 @@ interface WorldStateRow {
     currentNarrative: string;
 
     currentChoices: unknown;
+
+    adventureId: string | null;
+
+    currentNodeId: string | null;
+
+    // Same reasoning as PostgresStoryNodeRepository's
+    // pendingRenderRequest -- a nullable Json column reads back as
+    // Prisma.JsonValue | null, never plain `unknown`.
+    chapterState: Prisma.JsonValue | null;
+
+    narrativeState: Prisma.JsonValue | null;
 
     updatedAt: Date;
 
@@ -125,6 +138,18 @@ export class PostgresWorldStateStore implements WorldStateStore {
 
             currentChoices: state.currentChoices as unknown as object,
 
+            adventureId: state.adventureId ?? null,
+
+            currentNodeId: state.currentNodeId ?? null,
+
+            chapterState: state.chapterState
+                ? (state.chapterState as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+
+            narrativeState: state.narrativeState
+                ? (state.narrativeState as unknown as Prisma.InputJsonValue)
+                : Prisma.DbNull,
+
             updatedAt: new Date(state.updatedAt)
 
         };
@@ -162,6 +187,18 @@ export class PostgresWorldStateStore implements WorldStateStore {
             currentNarrative: record.currentNarrative,
 
             currentChoices: record.currentChoices as Choice[],
+
+            adventureId: record.adventureId ?? undefined,
+
+            currentNodeId: record.currentNodeId ?? undefined,
+
+            chapterState: record.chapterState !== null
+                ? (record.chapterState as unknown as ChapterState)
+                : undefined,
+
+            narrativeState: record.narrativeState !== null
+                ? (record.narrativeState as unknown as NarrativeState)
+                : undefined,
 
             updatedAt: record.updatedAt.toISOString()
 

@@ -91,9 +91,25 @@ export interface Adventure {
 
     learningPlan: LearningPlanEntry[];
 
-    emotionCurve: EmotionCurvePoint[];
+    // Never read during traversal (only round-tripped for
+    // persistence) -- kept for potential future analytics use, but
+    // no longer requested from the metadata generator by default
+    // (see AdventureMetadataGenerator) since it added schema
+    // complexity for zero current runtime benefit. Optional so older
+    // and newer callers both remain valid.
+    emotionCurve?: EmotionCurvePoint[];
 
     genome: StoryGenome;
+
+    // A short, non-prose phrase (NOT full narration) describing the
+    // adventure's opening situation/premise -- e.g. "a small bird
+    // named Pip sits sad and quiet at the edge of the wood." Used as
+    // the narrativeSeed for the root node's own RenderRequest
+    // (InitialStoryBuilder), the same way a CandidateEvent's
+    // narrativeSeed drives every other node's rendering. This is the
+    // one piece of genuinely creative content the metadata call is
+    // allowed to produce beyond adventure-level facts.
+    premise: string;
 
     rootNodeId: string;
 

@@ -1,3 +1,6 @@
+import { ChapterState } from "./ChapterState";
+import { NarrativeState } from "./NarrativeState";
+
 export interface InventoryItem {
 
     id: string;
@@ -106,6 +109,18 @@ export interface WorldState {
     adventureId?: string;
 
     currentNodeId?: string;
+
+    // Section B: deterministic chapter progression state -- additive,
+    // optional so existing code paths remain valid. Undefined means
+    // no chapter progression tracking (e.g. code paths unrelated to
+    // the graph runtime).
+    chapterState?: ChapterState;
+
+    // Phase 2A: persistent story facts (location/active characters/
+    // goal/problem/facts/threads) -- optional for the same reason
+    // chapterState is: old records/code paths remain valid without
+    // it.
+    narrativeState?: NarrativeState;
 
     updatedAt: string;
 

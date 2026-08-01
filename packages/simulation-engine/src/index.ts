@@ -1,4 +1,6 @@
 export * from "./models/WorldState";
+export * from "./models/ChapterState";
+export * from "./models/NarrativeState";
 export * from "./models/StateEffect";
 export * from "./models/Decision";
 export * from "./models/Choice";

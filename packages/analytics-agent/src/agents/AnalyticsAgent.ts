@@ -75,7 +75,9 @@ export class AnalyticsAgent extends BaseAgent<
 
             prompt,
 
-            responseFormat: "json"
+            responseFormat: "json",
+
+            metadata: { caller: "AnalyticsAgent", purpose: "explain_analytics" }
 
         });
 

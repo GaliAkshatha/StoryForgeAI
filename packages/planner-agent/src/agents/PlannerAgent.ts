@@ -1,3 +1,14 @@
+/**
+ * @deprecated Phase O (deterministic-first migration audit): this
+ * class is no longer reachable from any live API route. It was part
+ * of the original linear content-generation pipeline
+ * (Requirement -> Planner -> Research -> Story -> Critic), fully
+ * superseded by the graph-based AdventureRuntime + Story Graph.
+ * Not deleted -- real, tested code kept in case a standalone
+ * "generate a story to read" feature (distinct from the
+ * interactive adventure) is wanted later. See AppContainer for
+ * where this used to be constructed.
+ */
 import {
     BaseAgent,
     AgentContext,
@@ -54,7 +65,9 @@ export class PlannerAgent extends BaseAgent<
 
             prompt,
 
-            responseFormat: "json"
+            responseFormat: "json",
+
+                metadata: { caller: "PlannerAgent", purpose: "plan_story" }
 
         });
 

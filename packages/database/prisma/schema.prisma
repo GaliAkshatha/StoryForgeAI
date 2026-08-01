@@ -78,6 +78,28 @@ model WorldStateRecord {
   domain            String   @default("")
   currentNarrative  String   @default("")
   currentChoices    Json     @default("[]")
+  // v3 Story Graph link -- links this WorldState to the Adventure/
+  // StoryNode it's currently walking. Added to the WorldState domain
+  // model when the graph-based runtime was introduced, but this
+  // schema (and PostgresWorldStateStore's mapping) was never updated
+  // to match -- a real, pre-existing bug: adventureId/currentNodeId
+  // were silently dropped on every Postgres round-trip, causing
+  // AdventureRuntime.playTurn() to fail on the very next request
+  // after a fresh (non-memory-mode) create().
+  adventureId       String?
+  currentNodeId     String?
+  // Chapter lifecycle correction pass: deterministic chapter
+  // progression state (turn/phase/meaningfulEvents/climaxReached).
+  // Nullable Json, same pattern as pendingRenderRequest on
+  // StoryNodeRecord -- Prisma.DbNull represents "no chapter state
+  // tracked" (code paths unrelated to the graph runtime), not a
+  // JSON-null value.
+  chapterState      Json?
+  // Phase 2A: persistent story facts (location/active characters/
+  // goal/problem/facts/threads). Same nullable-Json pattern as
+  // chapterState/pendingRenderRequest -- Prisma.DbNull for "not
+  // tracked" (backward-compat with pre-Phase-2A records).
+  narrativeState    Json?
   updatedAt         DateTime
 
   @@index([childId])
@@ -146,6 +168,9 @@ model AdventureRecord {
   learningPlan  Json
   emotionCurve  Json
   genome        Json     @default("{}")
+  // Correction pass: short non-prose seed phrase for the root
+  // node's opening narration -- see Adventure.premise.
+  premise       String   @default("")
   rootNodeId    String
   createdAt     DateTime @default(now())
 
@@ -171,6 +196,29 @@ model StoryNodeRecord {
   readingLevel     String
   isEnding         Boolean  @default(false)
   endingType       String?
+  // The following four fields were added to the StoryNode domain
+  // model during the lazy-narration and correction-pass work but
+  // never propagated to this schema -- the exact same class of bug
+  // as WorldState.adventureId/currentNodeId earlier. eventType feeds
+  // AdventureEvent/analytics logging; targetCharacterId/Name feed
+  // NPC memory logging; pendingRenderRequest is what
+  // NarrationRenderingService needs to lazily render a node -- its
+  // absence is what caused "node has no narrative and no
+  // pendingRenderRequest" on a real Postgres round-trip.
+  eventType           String?
+  targetCharacterId   String?
+  targetCharacterName String?
+  pendingRenderRequest Json?
+  // Phase 2A: carries the SemanticEvent's consequence/thread
+  // content so NarrativeStateTransition can apply it deterministically
+  // when this node is actually visited.
+  narrativeConsequence String?
+  // Phase 2B (Section B): explicit character-introduction signal --
+  // distinct from targetCharacterId/Name.
+  characterIntroducedId   String?
+  characterIntroducedName String?
+  threadIntroduced     String?
+  threadResolved       String?
   createdAt        DateTime @default(now())
 
   @@id([adventureId, id])

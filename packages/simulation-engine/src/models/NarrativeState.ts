@@ -14,6 +14,51 @@ import { AdventureEventType } from "@storyforge/shared";
 // are all capped and drop the oldest entry once full -- "recent and
 // relevant," not "the complete transcript" (that's what
 // AdventureEventRepository is for).
+export type StoryProblemStatus = "active" | "resolved";
+
+// The structured replacement for treating "the problem" as a raw
+// string. Every field here is authored/derived in a controlled way
+// (never raw LLM prose), so concatenating them into choice/narration
+// text can never leak a character bio or a broken sentence fragment
+// -- which is exactly the bug class that kept recurring under the
+// string-based design.
+export interface StoryProblem {
+
+    id: string;
+
+    // A short label for analytics/logging, not shown to the player.
+    type: string;
+
+    // Character IDs involved -- NOT names, so this stays stable even
+    // if a character's display name changes.
+    participants: string[];
+
+    // Short controlled phrase (a handful of words), e.g. "a fallen
+    // branch blocks the path" -- authored to be interpolation-safe,
+    // never a full sentence copied from premise/description text.
+    reason: string;
+
+    // What resolving it looks like, e.g. "clear the path".
+    goal: string;
+
+    location: string;
+
+    status: StoryProblemStatus;
+
+    difficulty: number;
+
+}
+
+export type PlotBeatType = "hook" | "complication" | "moral_fork" | "test" | "resolution";
+
+export interface PlotBeat {
+
+    beat: PlotBeatType;
+
+    summary: string;
+
+}
+
 export interface NarrativeState {
 
     location: string;
@@ -36,6 +81,16 @@ export interface NarrativeState {
     // offered (see ConstraintEngine's problem_established check) --
     // without this, "helps Professor Hoot" or "solves it" refers to
     // nothing.
+    // Structured problem representation -- the source of truth.
+    // currentProblem (string) below is now DERIVED from this for
+    // backward-compatible display/logging only; nothing should build
+    // player-facing text by concatenating raw strings anymore.
+    activeProblem?: StoryProblem;
+
+    // @deprecated derived display string -- kept for backward
+    // compatibility with existing persisted records and any code not
+    // yet migrated to activeProblem. Never interpolate this directly
+    // into choice text; use activeProblem's structured fields.
     currentProblem?: string;
 
     // Bounded to 8 -- enough for SemanticEventBuilder to reference
@@ -54,6 +109,15 @@ export interface NarrativeState {
     // stays available even before an AdventureEvent has been
     // persisted for the current turn.
     recentEventTypes: AdventureEventType[];
+
+    // Story arc pass: the authored plot (from Adventure.plotOutline)
+    // and which beat is currently active. Advances alongside
+    // ChapterProgressionEngine's phase (see AdventureRuntime) --
+    // this is what keeps the middle/late chapter tied to an actual
+    // arc instead of freezing at the opening's initial problem.
+    plotOutline?: PlotBeat[];
+
+    currentBeatIndex?: number;
 
 }
 

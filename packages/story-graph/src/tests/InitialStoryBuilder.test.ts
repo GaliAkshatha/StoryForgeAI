@@ -58,7 +58,17 @@ function baseInput(adventureId: string) {
 
         location: "the Whispering Wood",
 
-        premise: "a fox named Fenn waits quietly at the treeline"
+        premise: "a fox named Fenn waits quietly at the treeline",
+
+        initialProblem: "a path forward needs to be found",
+
+        plotOutline: [
+            { beat: "hook" as const, summary: "a fox needs help crossing the wood" },
+            { beat: "complication" as const, summary: "the usual path is blocked" },
+            { beat: "moral_fork" as const, summary: "decide whether to admit a mistake" },
+            { beat: "test" as const, summary: "someone else learns what really happened" },
+            { beat: "resolution" as const, summary: "trust is rebuilt" }
+        ]
 
     };
 

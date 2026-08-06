@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { User, AuthenticatedSession } from "../models/User";
 import { UserRepository } from "../repositories/UserRepository";
 import { PasswordHasher } from "./PasswordHasher";
+import { ApiKeyEncryption } from "./ApiKeyEncryption";
 
 export interface AuthServiceConfig {
 
@@ -33,7 +34,11 @@ export class AuthService {
 
     constructor(
         private readonly users: UserRepository,
-        private readonly config: AuthServiceConfig
+        private readonly config: AuthServiceConfig,
+        // BYOK (Part 4): optional so existing callers/tests that
+        // don't manage API keys are unaffected. Methods below throw
+        // a clear error if called without it configured.
+        private readonly apiKeyEncryption?: ApiKeyEncryption
     ) {}
 
     async register(
@@ -193,6 +198,79 @@ export class AuthService {
         user.passwordHash = await this.hasher.hash(newPassword);
 
         await this.users.save(user);
+
+    }
+
+    // BYOK (Part 4). Validation of the key against the real Gemini
+    // API happens in the route layer (it needs to make an actual
+    // LLM call, which is outside AuthService's job) -- this method
+    // only encrypts and persists an ALREADY-validated key.
+    async setApiKey(
+        userId: string,
+        plaintextApiKey: string
+    ): Promise<void> {
+
+        if (!this.apiKeyEncryption) {
+
+            throw new Error("AuthService: API key management is not configured (ENCRYPTION_KEY missing).");
+
+        }
+
+        const user = await this.users.findById(userId);
+
+        if (!user) {
+            throw new Error("Account not found.");
+        }
+
+        user.geminiApiKeyEncrypted = this.apiKeyEncryption.encrypt(plaintextApiKey);
+
+        await this.users.save(user);
+
+    }
+
+    async removeApiKey(
+        userId: string
+    ): Promise<void> {
+
+        const user = await this.users.findById(userId);
+
+        if (!user) {
+            throw new Error("Account not found.");
+        }
+
+        user.geminiApiKeyEncrypted = undefined;
+
+        await this.users.save(user);
+
+    }
+
+    // Never exposed via an HTTP response -- only consumed internally
+    // to construct a per-user LLM client for gameplay requests.
+    async getDecryptedApiKey(
+        userId: string
+    ): Promise<string | undefined> {
+
+        if (!this.apiKeyEncryption) {
+            return undefined;
+        }
+
+        const user = await this.users.findById(userId);
+
+        if (!user?.geminiApiKeyEncrypted) {
+            return undefined;
+        }
+
+        return this.apiKeyEncryption.decrypt(user.geminiApiKeyEncrypted);
+
+    }
+
+    async hasApiKey(
+        userId: string
+    ): Promise<boolean> {
+
+        const user = await this.users.findById(userId);
+
+        return !!user?.geminiApiKeyEncrypted;
 
     }
 

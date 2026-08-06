@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { api, ChildProfile, WeeklyReport, WeeklyTrendPoint, LearningSummary } from "../api/client";
 import { useSession } from "../state/SessionContext";
@@ -96,7 +97,12 @@ export function ParentDashboardPage() {
 
             <div className="relative z-10 max-w-[1600px] mx-auto px-2 md:px-6">
 
-                <header className="flex items-center justify-between mb-10">
+                <motion.header
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="flex items-center justify-between mb-10"
+                >
 
                     <div>
                         <p className="font-data text-mystic text-xs tracking-[0.3em] uppercase mb-1">
@@ -116,7 +122,7 @@ export function ParentDashboardPage() {
                         </RuneButton>
                     </div>
 
-                </header>
+                </motion.header>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -128,9 +134,16 @@ export function ParentDashboardPage() {
 
                         <ul className="flex flex-col gap-2 mb-4">
 
-                            {children.map(child => (
-                                <li key={child.id}>
-                                    <button
+                            {children.map((child, index) => (
+                                <motion.li
+                                    key={child.id}
+                                    initial={{ opacity: 0, x: -8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.06, duration: 0.3 }}
+                                >
+                                    <motion.button
+                                        whileHover={{ x: 3 }}
+                                        whileTap={{ scale: 0.98 }}
                                         onClick={() => setSelectedChildId(child.id)}
                                         className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
                                             selectedChildId === child.id
@@ -139,9 +152,11 @@ export function ParentDashboardPage() {
                                         }`}
                                     >
                                         <span className="font-body font-bold block">{child.name}</span>
-                                        <span className="text-xs opacity-70">Age {child.ageRange}</span>
-                                    </button>
-                                </li>
+                                        <span className="text-xs opacity-70">
+                                            Age {child.ageRange} · {child.adventureWorldIds.length} adventure{child.adventureWorldIds.length === 1 ? "" : "s"}
+                                        </span>
+                                    </motion.button>
+                                </motion.li>
                             ))}
 
                         </ul>
@@ -188,11 +203,25 @@ export function ParentDashboardPage() {
                             </>
                         ) : (
                             !loading && (
-                                <ParchmentCard className="md:col-span-2">
-                                    <p className="text-parchmentDim">
-                                        No heroes yet. Create one to begin their story.
-                                    </p>
-                                </ParchmentCard>
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.97 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    transition={{ duration: 0.4 }}
+                                    className="md:col-span-2"
+                                >
+                                    <ParchmentCard className="flex flex-col items-center text-center gap-4 py-12">
+                                        <GuideCharacter guideKey="dashboard-empty" position="corner" />
+                                        <h3 className="font-display text-xl text-parchment">
+                                            No heroes yet
+                                        </h3>
+                                        <p className="text-parchmentDim text-sm max-w-sm">
+                                            Create a hero on the left to begin their first adventure.
+                                        </p>
+                                        <RuneButton onClick={() => setShowCreateForm(true)}>
+                                            + New hero
+                                        </RuneButton>
+                                    </ParchmentCard>
+                                </motion.div>
                             )
                         )}
 
@@ -412,19 +441,25 @@ function Sparkline({
         <div>
             <p className="text-xs text-parchmentDim capitalize mb-1">{skill}</p>
             <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-                <polyline
+                <motion.polyline
                     points={coords.join(" ")}
                     fill="none"
                     stroke={color}
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    initial={{ pathLength: 0, opacity: 0 }}
+                    animate={{ pathLength: 1, opacity: 1 }}
+                    transition={{ duration: 0.9, ease: "easeOut" }}
                 />
-                <circle
+                <motion.circle
                     cx={coords[coords.length - 1]?.split(",")[0]}
                     cy={coords[coords.length - 1]?.split(",")[1]}
                     r={3}
                     fill={color}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.7, type: "spring", stiffness: 400, damping: 15 }}
                 />
             </svg>
         </div>
@@ -477,11 +512,11 @@ function WeeklyReportPanel({ report }: { report: WeeklyReport | null }) {
                                     </span>
                                 </div>
                                 <div className="h-2 rounded-full bg-night/60 overflow-hidden">
-                                    <div
+                                    <motion.div
                                         className="h-full bg-mystic rounded-full"
-                                        style={{
-                                            width: `${Math.max(6, ((point.averageDelta + 1) / 2) * 100)}%`
-                                        }}
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.max(6, ((point.averageDelta + 1) / 2) * 100)}%` }}
+                                        transition={{ duration: 0.6, ease: "easeOut" }}
                                     />
                                 </div>
                             </div>

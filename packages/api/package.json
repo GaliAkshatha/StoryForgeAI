@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@storyforge/identity": "workspace:*",
+    "@storyforge/llm-client": "workspace:*",
     "@storyforge/parent": "workspace:*",
     "@storyforge/child": "workspace:*",
     "@storyforge/learning": "workspace:*",

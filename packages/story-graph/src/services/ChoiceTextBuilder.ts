@@ -3,14 +3,25 @@ import { NarrativeState } from "@storyforge/simulation-engine";
 import { CandidateEvent } from "../models/CandidateEvent";
 
 // Phase 2B (Section C-H): replaces CHOICE_TEXT's eventType-only
-// lookup with wording contextualized by the SAME structural fields
-// already available at expansion time (target, current problem,
-// location) -- deliberately template-based rather than an NLP
-// transform of SemanticEvent.action's free text, per the explicit
-// "do not build a fragile general English NLP engine" instruction.
-// Presentation-only: never re-checks feasibility (that already
-// happened in ConstraintEngine/EventScorer before this runs), never
-// leaks a consequence, never touches rendering.
+// lookup with wording contextualized by structural fields already
+// available at expansion time (target, location) -- deliberately
+// template-based rather than an NLP transform, per the explicit "do
+// not build a fragile general English NLP engine" instruction.
+// Presentation-only: never re-checks feasibility, never leaks a
+// consequence, never touches rendering.
+//
+// Audit note: choice text used to also splice NarrativeState's free-
+// text `problem` field into these templates ("Try again -- {problem}").
+// That was the source of a recurring class of bugs across several
+// rounds of fixes -- dangling conjunctions, double conjunctions,
+// missing articles ("fallen log blocks stream") -- because Gemini's
+// output isn't guaranteed to be a grammatically complete phrase, and
+// no amount of cleanup fully closes that gap. Choice text now uses
+// ONLY reliable, structured fields (the target character's name,
+// never raw problem text); the narration shown directly above the
+// choices already establishes the situation, so choices don't need
+// to restate it. Vague-but-always-correct beats specific-but-
+// occasionally-broken for a children's product.
 export class ChoiceTextBuilder {
 
     build(
@@ -20,91 +31,48 @@ export class ChoiceTextBuilder {
 
         const target = candidate.targetName;
 
-        // Section E.3 (short): NarrativeState.currentProblem is often
-        // seeded from the adventure's full premise sentence (Phase
-        // 2A), which can be much longer than a choice label should
-        // be. Truncated to a short phrase HERE, before interpolation
-        // -- so a verbose premise degrades to a shorter phrase
-        // gracefully instead of silently tripping the length safety
-        // net in safe() and collapsing every choice to the generic
-        // fallback for the whole first stretch of an adventure.
-        const problem = this.shorten(narrativeState.currentProblem);
-
-        const location = candidate.locationId ?? narrativeState.location;
-
-        const text = this.buildForType(candidate.type, target, problem, location);
+        const text = this.buildForType(candidate.type, target);
 
         return this.safe(text, candidate.type, target);
 
     }
 
-    // Keeps roughly the first clause of a longer sentence -- cheap,
-    // deterministic, no NLP. "a fallen branch blocks the path and
-    // Squeak needs help moving it" -> "a fallen branch blocks the path".
-    private shorten(
-        text: string | undefined
-    ): string | undefined {
-
-        if (!text) {
-            return undefined;
-        }
-
-        const words = text.trim().split(/\s+/);
-
-        if (words.length <= 6) {
-            return text.trim();
-        }
-
-        return words.slice(0, 6).join(" ");
-
-    }
-
     private buildForType(
         type: AdventureEventType,
-        target: string | undefined,
-        problem: string | undefined,
-        location: string
+        target: string | undefined
     ): string | undefined {
 
         switch (type) {
 
             case "helped_npc":
-                return target && problem
-                    ? `Help ${target} with ${problem}`
-                    : target ? `Help ${target}` : undefined;
+                return target ? `Help ${target}` : undefined;
 
             case "asked_questions":
-                return target && problem
-                    ? `Ask ${target} about ${problem}`
-                    : target ? `Ask ${target} about it` : undefined;
+                return target ? `Ask ${target} what happened` : undefined;
 
             case "shared_resources":
                 return target ? `Share something with ${target}` : undefined;
 
             case "led_team":
-                return problem
-                    ? `Lead the way through ${problem}`
-                    : target ? `Take the lead with ${target}` : undefined;
+                return target ? `Take the lead with ${target}` : `Take the lead`;
 
             case "solved_puzzle":
-                return problem ? `Try to get past ${problem}` : undefined;
+                return `Try to fix it`;
 
             case "failed_puzzle":
-                return problem ? `Try to deal with ${problem}` : undefined;
+                return `Give it a try`;
 
             case "retried":
-                return problem ? `Try ${problem} again` : undefined;
+                return `Try again`;
 
             case "ignored_warning":
                 return "Keep going despite the warning";
 
             case "explored":
-                return `Explore ${location} further`;
+                return `Look around nearby`;
 
             case "observed":
-                return problem
-                    ? `Look closely at ${problem}`
-                    : `Look closely around ${location}`;
+                return `Look closely`;
 
             default:
                 return undefined;

@@ -1,3 +1,5 @@
+import { PlotBeat } from "@storyforge/simulation-engine";
+
 export interface AdventureCharacter {
 
     id: string;
@@ -110,6 +112,20 @@ export interface Adventure {
     // one piece of genuinely creative content the metadata call is
     // allowed to produce beyond adventure-level facts.
     premise: string;
+
+    // Stabilization pass: a short, distinct SITUATION phrase --
+    // never a restatement of a character's name+description. Used
+    // for choice-text/problem-continuity purposes (ChoiceTextBuilder,
+    // ConstraintEngine's problem_established); `premise` remains the
+    // richer opening-scene seed used for root narration.
+    initialProblem: string;
+
+    // Story arc pass: the authored plot -- 5 controlled-phrase beats
+    // (hook/complication/moral_fork/test/resolution). This is what
+    // gives the chapter an actual arc with a twist instead of
+    // disconnected events; the deterministic engine advances through
+    // these as ChapterProgressionEngine's phase advances.
+    plotOutline: PlotBeat[];
 
     rootNodeId: string;
 

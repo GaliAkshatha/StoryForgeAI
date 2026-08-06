@@ -45,10 +45,11 @@ export function parentRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
-            res.status(400).json({
-                error: error instanceof Error ? error.message : "Could not update profile."
-            });
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
 
+            res.status(400).json({
+                error: "Could not update profile."
+            });
         }
 
     });

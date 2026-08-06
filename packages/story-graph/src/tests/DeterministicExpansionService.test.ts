@@ -99,6 +99,11 @@ function baseInput() {
         // the new endingEligible-specific tests below).
         endingEligible: false,
 
+        // Pacing pass: true preserves existing test behavior (full
+        // choice menus) -- these tests are about candidate/scoring
+        // correctness, not pacing, which has its own dedicated tests.
+        offerChoice: true,
+
         emotionGuidance: { shouldReduceDifficulty: false, shouldIncreaseEncouragement: false, promptNote: "" },
 
         turn: 3,

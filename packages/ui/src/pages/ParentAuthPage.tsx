@@ -6,6 +6,7 @@ import { ParchmentCard } from "../components/ParchmentCard";
 import { RuneButton } from "../components/RuneButton";
 import { GuideCharacter } from "../components/GuideCharacter";
 import { Starfield } from "../components/Starfield";
+import { ErrorNotice } from "../components/ErrorNotice";
 
 export function ParentAuthPage() {
 
@@ -46,7 +47,7 @@ export function ParentAuthPage() {
 
             setSession(result.token, result.parent);
 
-            navigate("/dashboard");
+            navigate(mode === "register" ? "/setup-api-key" : "/dashboard");
 
         }
         catch (err) {
@@ -126,7 +127,7 @@ export function ParentAuthPage() {
                         />
 
                         {error && (
-                            <p className="text-rose text-sm" role="alert">{error}</p>
+                            <ErrorNotice message={error} />
                         )}
 
                         <RuneButton type="submit" disabled={loading}>

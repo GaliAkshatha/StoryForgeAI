@@ -123,6 +123,14 @@ export class ConstraintEngine {
             // "helps X" or "solves it" refers to nothing.
             case "problem_established":
 
+                if (context.narrativeState.activeProblem) {
+
+                    return context.narrativeState.activeProblem.status === "active"
+                        ? undefined
+                        : "the established problem has already been resolved";
+
+                }
+
                 return context.narrativeState.currentProblem
                     ? undefined
                     : "no problem is currently established in the story";

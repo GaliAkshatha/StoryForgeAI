@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
 import {
     api,
@@ -14,6 +15,15 @@ import { RuneButton } from "../components/RuneButton";
 import { GuideCharacter } from "../components/GuideCharacter";
 import { Starfield } from "../components/Starfield";
 import { NarrationControls } from "../components/NarrationControls";
+import { LoadingJourney } from "../components/LoadingJourney";
+import { ErrorNotice } from "../components/ErrorNotice";
+
+// Deterministic by position, not by parsing choice text -- keyword-
+// matching a phrase to "the right" icon is fragile NLP; a small,
+// consistent set that always differs across simultaneous choices is
+// enough to make each option feel like a distinct path, not a plain
+// list item.
+const PATH_ICONS = ["🗝️", "🌿", "🧭", "✨"];
 
 type Stage =
     | "setup"
@@ -250,7 +260,7 @@ export function AdventurePage() {
                                 />
                             </label>
 
-                            {error && <p className="text-rose text-sm" role="alert">{error}</p>}
+                            {error && <ErrorNotice message={error} />}
 
                             <RuneButton type="submit">Begin the story</RuneButton>
 
@@ -259,7 +269,16 @@ export function AdventurePage() {
                 )}
 
                 {stage === "opening-loading" && (
-                    <LoadingCard label={`Ember is dreaming up ${child?.name ?? "the"}'s story...`} />
+                    <LoadingJourney
+                        messages={[
+                            `Ember is dreaming up ${child?.name ?? "the"}'s story...`,
+                            "Building a magical world...",
+                            "Meeting new friends...",
+                            "Choosing today's challenge...",
+                            "Drawing the map...",
+                            "Almost ready..."
+                        ]}
+                    />
                 )}
 
                 {stage === "objective-reveal" && objective && (
@@ -288,7 +307,14 @@ export function AdventurePage() {
                 )}
 
                 {(stage === "playing" || stage === "resolving") && (
-                    <div className="flex flex-col gap-6 animate-popIn">
+                    <div className="flex flex-col gap-6">
+
+                        <motion.div
+                            key={narrative}
+                            initial={{ opacity: 0, y: 14 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.45, ease: "easeOut" }}
+                        >
 
                         <ParchmentCard className="relative overflow-hidden">
 
@@ -313,29 +339,97 @@ export function AdventurePage() {
 
                         </ParchmentCard>
 
-                        <div
-                            className="grid sm:grid-cols-2 gap-3"
-                            role="group"
-                            aria-label="What happens next?"
-                        >
-                            {choices.map((choice, index) => (
-                                <button
-                                    key={choice.id}
-                                    onClick={() => handleChoose(choice)}
+                        </motion.div>
+
+                        {choices.length === 1 ? (
+
+                            // Narration-only continuation -- this is
+                            // NOT a decision, it's turning the page.
+                            // Rendering it as a numbered quiz card
+                            // identical to real choices was the
+                            // actual source of the "feels like an
+                            // MCQ" complaint: visually there was zero
+                            // difference between "keep reading" and
+                            // "make a meaningful choice."
+                            <motion.div
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.2, duration: 0.35 }}
+                                className="flex justify-center pt-2"
+                            >
+                                <motion.button
+                                    whileHover={{ y: -2 }}
+                                    whileTap={{ scale: 0.97 }}
+                                    onClick={() => handleChoose(choices[0])}
                                     disabled={stage === "resolving"}
-                                    className={`text-left px-5 py-5 rounded-xl border-2 font-body text-base leading-relaxed transition-all duration-150 animate-popIn
-                                        ${selectedChoiceId === choice.id
-                                            ? "border-ember bg-ember/20 text-parchment animate-pulseGlow"
-                                            : "border-parchmentDim/25 text-parchment hover:border-mystic hover:bg-mystic/10 hover:-translate-y-0.5"}
-                                        disabled:opacity-40 disabled:pointer-events-none`
-                                    }
-                                    style={{ animationDelay: `${index * 60}ms` }}
+                                    className="px-8 py-3 rounded-full border-2 border-mystic/40 text-parchment font-body text-base
+                                        hover:border-mystic hover:bg-mystic/10 transition-colors duration-150
+                                        disabled:opacity-40 disabled:pointer-events-none"
                                 >
-                                    <span className="text-ember font-data text-xs mr-2">{index + 1}</span>
-                                    {choice.text}
-                                </button>
-                            ))}
-                        </div>
+                                    Continue reading →
+                                </motion.button>
+                            </motion.div>
+
+                        ) : (
+
+                            <div
+                                className="grid sm:grid-cols-2 gap-3"
+                                role="group"
+                                aria-label="What will you choose?"
+                            >
+                                {choices.map((choice, index) => {
+
+                                    const isSelected = selectedChoiceId === choice.id;
+
+                                    const isDimmed = selectedChoiceId !== null && !isSelected;
+
+                                    return (
+                                        <motion.button
+                                            key={choice.id}
+                                            initial={{ opacity: 0, y: 16 }}
+                                            animate={{
+                                                opacity: isDimmed ? 0.35 : 1,
+                                                y: 0,
+                                                scale: isSelected ? 1.02 : 1
+                                            }}
+                                            transition={{
+                                                delay: selectedChoiceId ? 0 : index * 0.08,
+                                                duration: 0.35,
+                                                ease: "easeOut"
+                                            }}
+                                            whileHover={!selectedChoiceId ? { y: -3, borderColor: "rgba(78, 217, 197, 0.8)" } : undefined}
+                                            whileTap={!selectedChoiceId ? { scale: 0.98 } : undefined}
+                                            onClick={() => handleChoose(choice)}
+                                            disabled={stage === "resolving"}
+                                            className={`text-left px-5 py-5 rounded-xl border-2 font-body text-base leading-relaxed
+                                                ${isSelected
+                                                    ? "border-ember bg-ember/20 text-parchment shadow-glow"
+                                                    : "border-parchmentDim/25 text-parchment"}
+                                                disabled:pointer-events-none`
+                                            }
+                                        >
+                                            <span className="text-lg mr-2" aria-hidden="true">
+                                                {PATH_ICONS[index % PATH_ICONS.length]}
+                                            </span>
+                                            <span className="text-ember font-data text-xs mr-2">{index + 1}</span>
+                                            {choice.text}
+                                            {isSelected && stage === "resolving" && (
+                                                <motion.span
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="ml-2 inline-block"
+                                                    aria-hidden="true"
+                                                >
+                                                    ✓
+                                                </motion.span>
+                                            )}
+                                        </motion.button>
+                                    );
+
+                                })}
+                            </div>
+
+                        )}
 
                         {stage === "resolving" && (
                             <p role="status" className="text-center text-sm text-parchmentDim animate-pulseGlow">
@@ -343,7 +437,7 @@ export function AdventurePage() {
                             </p>
                         )}
 
-                        {error && <p className="text-rose text-sm text-center" role="alert">{error}</p>}
+                        {error && <ErrorNotice message={error} />}
 
                     </div>
                 )}
@@ -417,19 +511,6 @@ export function AdventurePage() {
             />
 
         </div>
-    );
-
-}
-
-function LoadingCard({ label }: { label: string }) {
-
-    return (
-        <ParchmentCard>
-            <div role="status" className="flex flex-col items-center gap-4 py-6">
-                <div className="w-10 h-10 rounded-full border-2 border-ember/30 border-t-ember animate-spin" />
-                <p className="text-parchmentDim text-sm animate-pulseGlow">{label}</p>
-            </div>
-        </ParchmentCard>
     );
 
 }

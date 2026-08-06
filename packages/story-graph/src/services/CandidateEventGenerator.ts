@@ -253,6 +253,8 @@ export class CandidateEventGenerator {
 
             targetName: target?.name,
 
+            targetRole: target?.role,
+
             locationId: context.location,
 
             prerequisites: template.prerequisites(context, target),

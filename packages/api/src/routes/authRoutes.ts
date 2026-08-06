@@ -36,10 +36,11 @@ export function authRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
-            res.status(400).json({
-                error: error instanceof Error ? error.message : "Registration failed."
-            });
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
 
+            res.status(400).json({
+                error: "Registration failed."
+            });
         }
 
     });
@@ -67,10 +68,11 @@ export function authRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
-            res.status(401).json({
-                error: error instanceof Error ? error.message : "Login failed."
-            });
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
 
+            res.status(401).json({
+                error: "Login failed."
+            });
         }
 
     });
@@ -121,10 +123,11 @@ export function authRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
-            res.status(400).json({
-                error: error instanceof Error ? error.message : "Could not change password."
-            });
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
 
+            res.status(400).json({
+                error: "Could not change password."
+            });
         }
 
     });

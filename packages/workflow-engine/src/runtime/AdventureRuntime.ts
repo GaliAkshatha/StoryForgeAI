@@ -272,7 +272,10 @@ export class AdventureRuntime {
         // choices generated alongside it are never touched, so their
         // semantic content cannot leak into the played NarrativeState.
         const advancedNarrativeState = worldState.narrativeState
-            ? this.container.narrativeStateTransition.apply(worldState.narrativeState, nextNode)
+            ? this.container.narrativeStateTransition.advancePlotBeat(
+                this.container.narrativeStateTransition.apply(worldState.narrativeState, nextNode),
+                advancedChapterState.phase
+            )
             : worldState.narrativeState;
 
         let updatedWorldState = {
@@ -315,12 +318,29 @@ export class AdventureRuntime {
                 advancedChapterState
             );
 
+            // Pacing pass (Point 8): a real decision menu appears at
+            // the story's actual critical moments (the moral_fork and
+            // test plot beats, and the turn a genuine ending becomes
+            // possible -- the "Big Choice" before the ending) --
+            // otherwise this is a narration beat with a single
+            // "Continue" link. Deterministic, no LLM, no change to
+            // scoring/constraints/candidate generation.
+            const atCriticalBeat =
+                advancedNarrativeState?.currentBeatIndex === 2 ||
+                advancedNarrativeState?.currentBeatIndex === 3;
+
+            const offerChoice =
+                endingEligible ||
+                atCriticalBeat ||
+                advancedChapterState.turn % 3 === 0;
+
             nextNode = await this.maybeExpandGraph(
                 adventureId,
                 nextNode,
                 input,
                 updatedWorldState,
-                endingEligible
+                endingEligible,
+                offerChoice
             );
 
             updatedWorldState = {
@@ -499,13 +519,44 @@ export class AdventureRuntime {
 
             if (!analyticsResult.success) {
 
-                throw new Error(
-                    `AdventureRuntime: AnalyticsAgent failed: ${analyticsResult.error}`
+                console.error(
+                    "\n===== AdventureRuntime: AnalyticsAgent failed, using deterministic fallback =====\n" +
+                    `sessionId: ${input.sessionId}\n` +
+                    `error: ${analyticsResult.error}\n` +
+                    "===================================================================================\n"
                 );
 
-            }
+                // Stabilization pass (Part 8/9): never let an LLM
+                // explanation-writer's failure break the chapter's
+                // conclusion. skillSignals were already computed
+                // deterministically above (DeterministicAnalyticsEngine,
+                // zero LLM calls) -- only the plain-language summary
+                // sentence is missing, so a plain deterministic
+                // sentence takes its place instead of crashing.
+                analytics = {
 
-            analytics = analyticsResult.output!;
+                    sessionId: input.sessionId,
+
+                    childId: input.childId,
+
+                    skillSignals,
+
+                    behaviorNotes,
+
+                    summary: skillSignals.length > 0
+                        ? `Showed ${skillSignals.map(signal => signal.skill).join(", ")} during this chapter.`
+                        : "Explored and made choices during this chapter.",
+
+                    generatedAt: new Date().toISOString()
+
+                };
+
+            }
+            else {
+
+                analytics = analyticsResult.output!;
+
+            }
 
             const chapterNarrative =
                 chapterEvents.length > 0
@@ -543,13 +594,31 @@ export class AdventureRuntime {
 
             if (!reflectionResult.success) {
 
-                throw new Error(
-                    `AdventureRuntime: ReflectionAgent failed: ${reflectionResult.error}`
+                console.error(
+                    "\n===== AdventureRuntime: ReflectionAgent failed, using deterministic fallback =====\n" +
+                    `sessionId: ${input.sessionId}\n` +
+                    `error: ${reflectionResult.error}\n` +
+                    "====================================================================================\n"
                 );
 
-            }
+                reflection = {
 
-            reflection = reflectionResult.output!;
+                    question: "What do you think happens next?",
+
+                    followUpQuestions: ["Why do you think that?"],
+
+                    observedThemes: [],
+
+                    encouragement: "Every choice you made today was worth thinking about."
+
+                };
+
+            }
+            else {
+
+                reflection = reflectionResult.output!;
+
+            }
 
             // ------------------------------------------------
             // Achievements (Phases 2/8/13): deterministic milestone
@@ -691,7 +760,8 @@ export class AdventureRuntime {
         currentNode: StoryNode,
         input: AdventureTurnInput,
         worldState: WorldState,
-        endingEligible: boolean
+        endingEligible: boolean,
+        offerChoice: boolean
     ): Promise<StoryNode> {
 
         // Section D/E correction pass: expand precisely when this
@@ -762,6 +832,8 @@ export class AdventureRuntime {
                 turn: worldState.turn,
 
                 endingEligible,
+
+                offerChoice,
 
                 // Phase 2A: falls back to a minimal default only for
                 // legacy WorldState records that predate this field

@@ -1,4 +1,4 @@
-import { TextRenderer } from "@storyforge/llm-client";
+import { TextRenderer, RenderRequest } from "@storyforge/llm-client";
 import { StoryNode } from "../models/StoryNode";
 import { StoryNodeRepository } from "../interfaces/StoryNodeRepository";
 import { NarrativeQualityGate } from "./NarrativeQualityGate";
@@ -38,6 +38,26 @@ export class NarrationRenderingService {
         private readonly qualityGate: NarrativeQualityGate = new NarrativeQualityGate(),
         private readonly fallbackRenderer?: TextRenderer
     ) {}
+
+    // Hotfix: narrativeSeed is an ACTION phrase for most nodes
+    // ("helps Squeak with...") but a SCENE DESCRIPTION for the root
+    // (the adventure's premise). Prefixing a description with the
+    // actor's name produces broken grammar ("Ak A small squirrel
+    // named Squeaky is..."). Only action-phrase seeds get the prefix.
+    private safeFallbackText(
+        request: RenderRequest
+    ): string {
+
+        const seed = request.narrativeSeed?.trim() ?? "";
+
+        if (request.eventType === "adventure_opening") {
+            const situation = seed.endsWith(".") ? seed : `${seed}.`;
+            return `${request.actorName} arrives at ${request.location}. A quiet breeze drifts by. ${situation}`;
+        }
+
+        return `${request.actorName} ${seed}.`;
+
+    }
 
     async ensureRendered(
         node: StoryNode
@@ -79,7 +99,7 @@ export class NarrationRenderingService {
 
                 narrative = this.fallbackRenderer
                     ? (await this.fallbackRenderer.render(node.pendingRenderRequest)).text
-                    : `${node.pendingRenderRequest.actorName} ${node.pendingRenderRequest.narrativeSeed}.`;
+                    : this.safeFallbackText(node.pendingRenderRequest);
 
             }
 
@@ -95,8 +115,7 @@ export class NarrationRenderingService {
 
             );
 
-            narrative =
-                `${node.pendingRenderRequest.actorName} ${node.pendingRenderRequest.narrativeSeed}.`;
+            narrative = this.safeFallbackText(node.pendingRenderRequest);
 
         }
 

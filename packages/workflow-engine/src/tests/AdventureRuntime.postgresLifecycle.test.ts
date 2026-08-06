@@ -71,7 +71,17 @@ const METADATA_RESPONSE = JSON.stringify({
         fantasyDensity: 0.6, puzzleDensity: 0.2, npcComplexity: 0.3, vocabulary: "simple"
     },
 
-    premise: "Ak stands at the edge of the Whispering Wood"
+    premise: "Ak stands at the edge of the Whispering Wood",
+
+    initialProblem: "a fallen branch blocks the path",
+
+    plotOutline: [
+        { beat: "hook", summary: "a friend needs help with a fallen branch" },
+        { beat: "complication", summary: "the branch is heavier than expected" },
+        { beat: "moral_fork", summary: "decide whether to admit a mistake" },
+        { beat: "test", summary: "someone else learns what really happened" },
+        { beat: "resolution", summary: "trust is rebuilt" }
+    ]
 
 });
 

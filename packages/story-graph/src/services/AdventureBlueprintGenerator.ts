@@ -267,6 +267,10 @@ export class AdventureBlueprintGenerator {
             // satisfied without inventing meaning for dead code.
             premise: "",
 
+            initialProblem: "",
+
+            plotOutline: [],
+
             title: output.title,
 
             moral: input.moral,

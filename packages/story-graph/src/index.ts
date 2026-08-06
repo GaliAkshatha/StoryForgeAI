@@ -52,3 +52,4 @@ export * from "./services/NarrativeStateTransition";
 export * from "./services/ChapterProgressionEngine";
 export * from "./services/ChoiceCountPolicy";
 export * from "./services/ChoiceTextBuilder";
+export * from "./services/TextFragmentUtils";

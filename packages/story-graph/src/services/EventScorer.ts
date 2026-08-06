@@ -1,4 +1,5 @@
 import { AdventureEventType } from "@storyforge/shared";
+import { PlotBeatType } from "@storyforge/simulation-engine";
 import { CandidateEvent } from "../models/CandidateEvent";
 import { AdventureEvent } from "../models/AdventureEvent";
 import { EmotionGuidance } from "./EmotionTrendService";
@@ -18,6 +19,29 @@ export interface EventScoringWeights {
     // "does this event continue a thread from a relevant past
     // memory" -- as its own explicit component.
     continuity: number;
+
+    // Story-structure pass: "does this event actually enact the
+    // current plot beat" -- e.g. at the moral_fork beat, a
+    // character-interaction event (helped_npc/asked_questions) is
+    // what the beat calls for, not a generic explored/observed pick.
+    // Before this existed, plotOutline only ever changed DISPLAY
+    // text (NarrativeState.currentProblem) -- it had zero influence
+    // on which of the ~10 generic event types actually got selected,
+    // which is why the plot arc read as decoration rather than
+    // structure.
+    beatAlignment: number;
+
+    // "Deck of cards" mechanic (Kreminski's storylet-design survey,
+    // via Fallen London/StoryNexus): a storylet highly relevant to
+    // current state should be noticeably more likely to surface, not
+    // merely eligible-or-not. Concretely: when NarrativeState has an
+    // open unresolved thread (e.g. "an unfinished attempt at moving
+    // the branch"), the event type that would actually engage that
+    // thread (retried, solved_puzzle) scores higher here -- so an
+    // open thread pulls focus back to itself soon, instead of being
+    // just as likely to get buried as it was to surface in the
+    // first place.
+    threadRelevance: number;
 
     repetitionPenalty: number;
 
@@ -40,21 +64,32 @@ export interface EventScoringWeights {
 //   separately). The 0.15 given to continuity was taken from
 //   learningRelevance, emotionalRelevance, and randomness -- not
 //   invented from nothing.
+// Story-structure pass: added beatAlignment (0.10), taken from
+// novelty (0.20 -> 0.15) and randomness (0.05 -> 0). The five
+// positive weights (learningRelevance/novelty/emotionalRelevance/
+// difficultyMatch/continuity/beatAlignment) still sum to 1.0.
+// Story-structure pass, continued: added threadRelevance (0.08),
+// taken from emotionalRelevance (0.15 -> 0.10) and difficultyMatch
+// (0.15 -> 0.12). All six positive weights still sum to 1.0.
 export const DEFAULT_SCORING_WEIGHTS: EventScoringWeights = {
 
     learningRelevance: 0.30,
 
-    novelty: 0.20,
+    novelty: 0.15,
 
-    emotionalRelevance: 0.15,
+    emotionalRelevance: 0.10,
 
-    difficultyMatch: 0.15,
+    difficultyMatch: 0.12,
 
     continuity: 0.15,
 
+    beatAlignment: 0.10,
+
+    threadRelevance: 0.08,
+
     repetitionPenalty: 0.25,
 
-    randomness: 0.05
+    randomness: 0
 
 };
 
@@ -69,6 +104,10 @@ export interface ScoreComponents {
     difficultyMatch: number;
 
     continuity: number;
+
+    beatAlignment: number;
+
+    threadRelevance: number;
 
     repetitionPenalty: number;
 
@@ -107,6 +146,19 @@ export interface EventScoringContext {
     // list to begin with (see DeterministicExpansionService).
     relevantMemories: AdventureEvent[];
 
+    // Story-structure pass: which plot beat is currently active
+    // (from NarrativeState.plotOutline[currentBeatIndex].beat), if
+    // any -- undefined for adventures/turns with no plot outline
+    // (legacy data, or the opening before any beat is set).
+    currentPlotBeat?: PlotBeatType;
+
+    // "Deck of cards" mechanic input -- NarrativeState.unresolvedThreads
+    // as-is. Presence alone (not matching a specific thread's exact
+    // content, which would be fragile NLP) drives threadRelevance:
+    // is there ANY open thread right now, and does this candidate's
+    // type belong to the small set that tends to engage one.
+    unresolvedThreads?: string[];
+
     // Same seed -> same scores -> same selection, every time (Phase
     // P's reproducibility requirement). Typically derived from
     // `${worldId}:${turn}` via SeededRandom.seedFromString.
@@ -121,6 +173,40 @@ export interface EventScoringContext {
 // as DeterministicAnalyticsEngine's weight table.
 const POSITIVE_RELATIONAL_TYPES: AdventureEventType[] = [
     "helped_npc", "shared_resources", "led_team"
+];
+
+// Story-structure pass: which generic event types actually enact
+// each plot beat. Small, explicit, reviewable -- same spirit as
+// POSITIVE_RELATIONAL_TYPES above. This is what makes the plot
+// outline a real constraint on gameplay instead of decorative text:
+// at the moral_fork beat, a character-interaction event scores
+// higher than a generic look-around, because the moral fork IS a
+// decision made in relation to someone/something, not idle
+// exploration.
+const BEAT_ALIGNED_TYPES: Record<PlotBeatType, AdventureEventType[]> = {
+
+    hook: ["observed", "explored", "asked_questions"],
+
+    complication: ["failed_puzzle", "explored", "ignored_warning"],
+
+    moral_fork: ["helped_npc", "asked_questions", "shared_resources"],
+
+    test: ["retried", "solved_puzzle", "led_team"],
+
+    resolution: ["solved_puzzle", "shared_resources", "led_team"]
+
+};
+
+// "Deck of cards" mechanic: which event types tend to actually
+// ENGAGE an open thread rather than leave it sitting unresolved --
+// retried directly follows up on "an unfinished attempt at X"
+// (ConstraintEngine already gates it on the hasFailedAttempt flag);
+// solved_puzzle/asked_questions are the natural ways a noticed
+// detail ("a detail noticed while looking into X", "a caution
+// noticed while exploring X") gets followed up on. Small, explicit,
+// reviewable -- same spirit as BEAT_ALIGNED_TYPES above.
+const THREAD_RESOLVING_TYPES: AdventureEventType[] = [
+    "retried", "solved_puzzle", "asked_questions"
 ];
 
 export class EventScorer {
@@ -183,6 +269,20 @@ export class EventScorer {
 
         const continuity = this.scoreContinuity(event, context.relevantMemories);
 
+        const beatAlignment = context.currentPlotBeat
+            ? (BEAT_ALIGNED_TYPES[context.currentPlotBeat].includes(event.type) ? 1 : 0.3)
+            : 0.5;
+
+        // Deck of cards: an open thread makes the type that would
+        // engage it noticeably more likely to be dealt -- but ONLY
+        // when a thread actually exists. No open thread -> neutral,
+        // never a bonus for "the right type" in the abstract.
+        const hasOpenThread = (context.unresolvedThreads ?? []).length > 0;
+
+        const threadRelevance = hasOpenThread
+            ? (THREAD_RESOLVING_TYPES.includes(event.type) ? 1 : 0.4)
+            : 0.5;
+
         const repetitionPenalty = recentOfType / recentTotal;
 
         const randomness = rng.next();
@@ -193,6 +293,8 @@ export class EventScorer {
             emotionalRelevance,
             difficultyMatch,
             continuity,
+            beatAlignment,
+            threadRelevance,
             repetitionPenalty,
             randomness
         };
@@ -202,7 +304,9 @@ export class EventScorer {
             this.weights.novelty * novelty +
             this.weights.emotionalRelevance * emotionalRelevance +
             this.weights.difficultyMatch * difficultyMatch +
-            this.weights.continuity * continuity -
+            this.weights.continuity * continuity +
+            this.weights.beatAlignment * beatAlignment +
+            this.weights.threadRelevance * threadRelevance -
             this.weights.repetitionPenalty * repetitionPenalty +
             this.weights.randomness * randomness;
 

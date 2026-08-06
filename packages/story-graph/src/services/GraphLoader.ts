@@ -81,7 +81,7 @@ export class GraphLoader {
 
                 currentGoal: "continue the adventure",
 
-                currentProblem: adventure.premise,
+                currentProblem: adventure.initialProblem || adventure.premise,
 
                 establishedFacts: adventure.premise ? [adventure.premise] : [],
 

@@ -1,6 +1,7 @@
 import { NarrativeState } from "@storyforge/simulation-engine";
 import { CandidateEvent } from "../models/CandidateEvent";
 import { SemanticEvent } from "../models/SemanticEvent";
+import { safeDashFragment, shortenSafely, stripTrailingPunctuation } from "./TextFragmentUtils";
 
 export interface SemanticEventBuildInput {
 
@@ -12,9 +13,6 @@ export interface SemanticEventBuildInput {
 
     aboutChild?: string;
 
-    // Phase 2A: required so the builder can contextualize a valid
-    // CandidateEvent using established story information instead of
-    // producing a bare, disconnected event-type label.
     narrativeState: NarrativeState;
 
 }
@@ -45,13 +43,14 @@ interface ContextualContent {
 // concrete content (target name, problem, location) is read from
 // input, never invented here.
 //
-// Division of responsibility (Section 8): ConstraintEngine already
-// decided this candidate is POSSIBLE given NarrativeState (e.g.
-// problem_established, npc_present against activeCharacterIds). This
-// class only decides what a possible event MEANS in the current
-// story -- it never re-checks feasibility and never fabricates
-// context to justify an event that shouldn't have passed
-// ConstraintEngine in the first place.
+// Audit note: this used to duplicate its own copies of
+// shorten/lowerFirst, which diverged from ChoiceTextBuilder's across
+// several rounds of independent fixes. Both now share
+// TextFragmentUtils.safeDashFragment, which never returns a fragment
+// ending on a dangling conjunction/stopword or trailing punctuation
+// -- and every template below has an explicit fallback for when the
+// cleaned problem comes back undefined, instead of a non-null
+// assertion that would produce "helps Squeak — undefined".
 export class SemanticEventBuilder {
 
     build(
@@ -100,29 +99,58 @@ export class SemanticEventBuilder {
 
     }
 
+    // Reverted: alternating with "the {role}" produced unnatural,
+    // game-label-sounding text ("the Energetic Squirrel") because
+    // AdventureMetadataGenerator's role field isn't guaranteed to be
+    // a simple, kid-friendly common noun. Always use the real name.
+    private referenceFor(
+        name: string | undefined
+    ): string | undefined {
+
+        return name;
+
+    }
+
     private buildContent(
         candidate: CandidateEvent,
         state: NarrativeState,
         actorName: string
     ): ContextualContent {
 
-        const target = candidate.targetName;
+        const target = this.referenceFor(candidate.targetName);
 
-        const problem = state.currentProblem;
+        const rawProblem = state.activeProblem?.status === "active"
+            ? state.activeProblem.reason
+            : state.currentProblem;
+
+        // Cleaned ONCE, here, using the same safe utility
+        // ChoiceTextBuilder uses -- never a raw or naively-truncated
+        // fragment. May legitimately be undefined (e.g. nothing
+        // usable survived cleaning); every case below has an
+        // explicit fallback for that, never a non-null assertion.
+        const problem = safeDashFragment(rawProblem);
 
         switch (candidate.type) {
 
             case "helped_npc":
 
                 // ConstraintEngine already required problem_established
-                // and npc_present -- both are safe to reference here.
-                return {
+                // and npc_present -- a target is always present here.
+                return problem ? {
 
-                    action: `helps ${target} with ${problem}`,
+                    action: `helps ${target} — ${problem}`,
 
-                    consequence: `${target} is relieved -- ${actorName}'s help makes a real difference with ${problem}`,
+                    consequence: `${target} is relieved -- ${actorName}'s help makes a real difference`,
 
                     factEstablished: `${actorName} helped ${target} with ${problem}`
+
+                } : {
+
+                    action: `helps ${target}`,
+
+                    consequence: `${target} is relieved -- ${actorName}'s help makes a real difference`,
+
+                    factEstablished: `${actorName} helped ${target}`
 
                 };
 
@@ -130,7 +158,7 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `takes charge and leads ${target} through ${problem ?? "a tricky moment"}`,
+                    action: `takes charge and leads ${target} — ${problem ?? "through a tricky moment"}`,
 
                     consequence: `${target} follows ${actorName}'s lead with new confidence`,
 
@@ -161,7 +189,7 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `asks ${target} about ${topic}`,
+                    action: `asks ${target} — ${topic}`,
 
                     consequence: establishesProblem
                         ? `${target} explains what's wrong`
@@ -177,13 +205,23 @@ export class SemanticEventBuilder {
 
             case "solved_puzzle":
 
-                return {
+                return problem ? {
 
-                    action: `figures out how to overcome ${problem}`,
+                    action: `figures out a way forward — ${problem}`,
 
-                    consequence: `the obstacle gives way -- ${problem} is no longer in the way`,
+                    consequence: `things start to get better -- ${problem} is no longer in the way`,
 
-                    factEstablished: `${actorName} solved: ${problem}`,
+                    factEstablished: `${actorName} solved it: ${problem}`,
+
+                    problemResolved: true
+
+                } : {
+
+                    action: `figures out a way forward`,
+
+                    consequence: `things start to get better`,
+
+                    factEstablished: `${actorName} solved the problem`,
 
                     problemResolved: true
 
@@ -191,27 +229,58 @@ export class SemanticEventBuilder {
 
             case "failed_puzzle":
 
-                return {
+                // Audit fix: this used to unconditionally append
+                // "-- but it doesn't quite work" onto problem!,
+                // producing "...spilled and -- but it doesn't quite
+                // work" when problem was a truncated fragment. Now
+                // has an explicit no-problem fallback, and the
+                // problem case builds one complete sentence rather
+                // than assuming the fragment slots in cleanly.
+                return problem ? {
 
-                    action: `tries to deal with ${problem}, but it doesn't work`,
+                    action: `tries to help with ${problem}, but it doesn't quite work`,
 
-                    consequence: `${problem} remains, but now there's something to try again`,
+                    consequence: `the problem remains, but now there's something to try again`,
 
                     threadIntroduced: `an unfinished attempt at ${problem}`
 
+                } : {
+
+                    action: `gives it a try, but it doesn't quite work`,
+
+                    consequence: `the problem remains, but now there's something to try again`,
+
+                    threadIntroduced: `an unfinished attempt`
+
                 };
 
-            case "retried":
+            case "retried": {
+
+                const priorAttemptRaw = state.unresolvedThreads
+                    .find(t => t.startsWith("an unfinished attempt"))
+                    ?.replace("an unfinished attempt at ", "")
+                    .replace("an unfinished attempt", "");
+
+                // Audit fix: this used to append "and tries a
+                // different way" directly onto unclean thread text,
+                // which could itself end in a dangling connector,
+                // producing "...spilled and and tries...". Re-cleaned
+                // through the same safe utility before reuse.
+                const priorAttempt = priorAttemptRaw ? stripTrailingPunctuation(shortenSafely(priorAttemptRaw) ?? "") : "";
 
                 return {
 
-                    action: `takes a breath and tries again`,
+                    action: priorAttempt.length > 0
+                        ? `remembers what went wrong and tries a different way with ${priorAttempt}`
+                        : `takes a breath and tries again`,
 
-                    consequence: `this time it goes differently`,
+                    consequence: "this time it goes differently",
 
                     threadResolved: state.unresolvedThreads.find(t => t.startsWith("an unfinished attempt"))
 
                 };
+
+            }
 
             case "ignored_warning":
 
@@ -227,7 +296,15 @@ export class SemanticEventBuilder {
 
             case "explored":
 
-                return {
+                return problem ? {
+
+                    action: `looks around for anything connected to ${problem}`,
+
+                    consequence: `notices something that might matter`,
+
+                    threadIntroduced: `a detail noticed while looking into ${problem}`
+
+                } : {
 
                     action: `explores further at ${state.location}`,
 
@@ -241,7 +318,13 @@ export class SemanticEventBuilder {
 
             default:
 
-                return {
+                return problem ? {
+
+                    action: `looks closely, thinking about ${problem}`,
+
+                    consequence: `notices a detail that might matter later`
+
+                } : {
 
                     action: candidate.narrativeSeed,
 

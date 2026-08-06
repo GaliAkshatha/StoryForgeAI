@@ -48,7 +48,9 @@ export function adventureRoutes(app: AppContainer): Router {
 
             });
 
-            const result = await app.adventures.startAdventure({
+            const runtime = await app.getAdventureRuntimeForUser(req.userId!);
+
+            const result = await runtime.startAdventure({
 
                 childId: child.id,
 
@@ -77,8 +79,18 @@ export function adventureRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
+            console.error(
+                "\n===== /adventures/start failed =====\n" +
+                `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n` +
+                "======================================\n"
+            );
+
+            // Stabilization pass (Part 8): never forward the raw
+            // error message to the child -- it can contain Gemini
+            // status codes, quota text, or other internal details.
+            // The real error is logged above for debugging.
             res.status(500).json({
-                error: error instanceof Error ? error.message : "Could not start the adventure."
+                error: "Could not start the adventure right now. Please try again."
             });
 
         }
@@ -111,7 +123,9 @@ export function adventureRoutes(app: AppContainer): Router {
 
         try {
 
-            const result = await app.adventures.playTurn({
+            const runtime = await app.getAdventureRuntimeForUser(req.userId!);
+
+            const result = await runtime.playTurn({
 
                 worldId,
 
@@ -149,8 +163,14 @@ export function adventureRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
+            console.error(
+                "\n===== /adventures/turn failed =====\n" +
+                `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n` +
+                "=====================================\n"
+            );
+
             res.status(400).json({
-                error: error instanceof Error ? error.message : "The story couldn't continue. Try again."
+                error: "The story couldn't continue. Please try again."
             });
 
         }

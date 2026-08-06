@@ -34,6 +34,10 @@ interface AdventureRow {
 
     premise: string;
 
+    initialProblem: string;
+
+    plotOutline: unknown;
+
     rootNodeId: string;
 
     createdAt: Date;
@@ -99,6 +103,10 @@ export class PostgresAdventureRepository implements AdventureRepository {
 
             premise: adventure.premise,
 
+            initialProblem: adventure.initialProblem,
+
+            plotOutline: adventure.plotOutline as unknown as object,
+
             rootNodeId: adventure.rootNodeId,
 
             createdAt: new Date(adventure.createdAt)
@@ -144,6 +152,10 @@ export class PostgresAdventureRepository implements AdventureRepository {
             genome: record.genome as StoryGenome,
 
             premise: record.premise,
+
+            initialProblem: record.initialProblem,
+
+            plotOutline: record.plotOutline as Adventure["plotOutline"],
 
             rootNodeId: record.rootNodeId,
 

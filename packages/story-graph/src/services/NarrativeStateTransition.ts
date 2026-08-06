@@ -1,5 +1,7 @@
 import {
     NarrativeState,
+    ChapterPhase,
+    PlotBeatType,
     ESTABLISHED_FACTS_LIMIT,
     UNRESOLVED_THREADS_LIMIT,
     RECENT_EVENT_TYPES_LIMIT,
@@ -47,6 +49,8 @@ export class NarrativeStateTransition {
 
         let currentProblem = current.currentProblem;
 
+        let activeProblem = current.activeProblem;
+
         if (node.eventType === "asked_questions" && !currentProblem) {
 
             currentProblem = node.narrativeConsequence ?? current.currentProblem;
@@ -56,6 +60,12 @@ export class NarrativeStateTransition {
         if (node.eventType === "solved_puzzle") {
 
             currentProblem = undefined;
+
+            if (activeProblem) {
+
+                activeProblem = { ...activeProblem, status: "resolved" };
+
+            }
 
         }
 
@@ -91,6 +101,8 @@ export class NarrativeStateTransition {
 
             currentProblem,
 
+            activeProblem,
+
             establishedFacts,
 
             unresolvedThreads,
@@ -98,6 +110,109 @@ export class NarrativeStateTransition {
             recentEventTypes
 
         };
+
+    }
+
+    // Story arc pass: moves the story into its NEXT authored beat
+    // once the chapter phase has progressed past the current beat's
+    // stage. This is what keeps the middle/late chapter tied to an
+    // actual plot (the moral fork, the twist that tests it) instead
+    // of the problem staying frozen at whatever the opening
+    // established. Deterministic -- purely a phase->beat lookup, no
+    // LLM involved.
+    private static readonly PHASE_FOR_BEAT: Record<PlotBeatType, ChapterPhase> = {
+
+        hook: "opening",
+
+        complication: "development",
+
+        moral_fork: "challenge",
+
+        test: "climax",
+
+        resolution: "resolution"
+
+    };
+
+    advancePlotBeat(
+        current: NarrativeState,
+        phase: ChapterPhase
+    ): NarrativeState {
+
+        if (!current.plotOutline || current.plotOutline.length === 0) {
+            return current;
+        }
+
+        const currentIndex = current.currentBeatIndex ?? 0;
+
+        // Find the furthest beat whose mapped phase has already been
+        // reached -- never regresses, and skips ahead cleanly if a
+        // phase transition was crossed in one turn.
+        let targetIndex = currentIndex;
+
+        for (let i = current.plotOutline.length - 1; i >= currentIndex; i--) {
+
+            if (this.phaseReached(phase, NarrativeStateTransition.PHASE_FOR_BEAT[current.plotOutline[i].beat])) {
+
+                targetIndex = i;
+
+                break;
+
+            }
+
+        }
+
+        if (targetIndex === currentIndex) {
+            return current;
+        }
+
+        const newBeat = current.plotOutline[targetIndex];
+
+        return {
+
+            ...current,
+
+            currentBeatIndex: targetIndex,
+
+            currentProblem: newBeat.summary,
+
+            activeProblem: {
+
+                id: `problem-beat-${targetIndex}`,
+
+                type: newBeat.beat,
+
+                participants: current.activeCharacterIds,
+
+                reason: newBeat.summary,
+
+                goal: current.currentGoal,
+
+                location: current.location,
+
+                status: "active",
+
+                difficulty: 1
+
+            },
+
+            establishedFacts: boundedPush(current.establishedFacts, newBeat.summary, ESTABLISHED_FACTS_LIMIT)
+
+        };
+
+    }
+
+    private static readonly PHASE_ORDER: ChapterPhase[] = [
+        "opening", "exploration", "development", "challenge", "climax", "resolution"
+    ];
+
+    private phaseReached(
+        actualPhase: ChapterPhase,
+        requiredPhase: ChapterPhase
+    ): boolean {
+
+        return NarrativeStateTransition.PHASE_ORDER.indexOf(actualPhase) >=
+               NarrativeStateTransition.PHASE_ORDER.indexOf(requiredPhase);
 
     }
 

@@ -56,6 +56,11 @@ export interface CandidateEvent {
 
     targetName?: string;
 
+    // Stabilization pass (Part 4): used to vary references
+    // ("the friend" instead of the name every time) rather than
+    // repeating the character's name in nearly every sentence.
+    targetRole?: string;
+
     locationId?: string;
 
     prerequisites: EventPrerequisite[];

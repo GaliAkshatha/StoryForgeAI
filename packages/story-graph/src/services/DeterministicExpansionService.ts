@@ -66,6 +66,15 @@ export interface DeterministicExpansionInput {
     // itself; it only acts on what it's told.
     endingEligible: boolean;
 
+    // Pacing pass: when false, this expansion produces a single
+    // narration-only continuation (no real fork) instead of a normal
+    // 2-3 option decision menu -- ChapterProgressionEngine's phase
+    // and beat position decide this in AdventureRuntime, never this
+    // service itself. This is what turns "a choice every single
+    // turn" into "Narration -> Narration -> Choice -> Narration ->
+    // Choice" pacing without touching scoring/constraints/eventing.
+    offerChoice: boolean;
+
     // Phase 2A: the currently-played story state -- read-only input
     // here. This service never mutates it; NarrativeStateTransition
     // (called from AdventureRuntime, only for the node the child
@@ -194,13 +203,21 @@ export class DeterministicExpansionService {
 
                 relevantMemories,
 
+                currentPlotBeat: input.narrativeState.plotOutline?.[
+                    input.narrativeState.currentBeatIndex ?? 0
+                ]?.beat,
+
+                unresolvedThreads: input.narrativeState.unresolvedThreads,
+
                 seed
 
             }
 
         );
 
-        const targetCount = this.choiceCountPolicy.determine(valid.length);
+        const targetCount = input.offerChoice
+            ? this.choiceCountPolicy.determine(valid.length)
+            : Math.min(1, valid.length);
 
         // Section H: small deterministic diversity rule -- walk the
         // ranked list greedily, but skip a candidate whose type has
@@ -352,7 +369,9 @@ export class DeterministicExpansionService {
 
                 id: `${input.nodeIdPrefix}-choice-${i}`,
 
-                text: this.choiceTextBuilder.build(candidate, input.narrativeState),
+                text: input.offerChoice
+                    ? this.choiceTextBuilder.build(candidate, input.narrativeState)
+                    : "Continue",
 
                 nextNodeId: nodeId
 

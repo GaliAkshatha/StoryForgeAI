@@ -28,7 +28,17 @@ const METADATA_RESPONSE = JSON.stringify({
         fantasyDensity: 0.5, puzzleDensity: 0.3, npcComplexity: 0.3, vocabulary: "simple"
     },
 
-    premise: "a fallen branch blocks the path and Squeak needs help moving it"
+    premise: "a fallen branch blocks the path and Squeak needs help moving it",
+
+    initialProblem: "a fallen branch blocks the path",
+
+    plotOutline: [
+        { beat: "hook", summary: "a friend needs help with a fallen branch" },
+        { beat: "complication", summary: "the branch is heavier than expected" },
+        { beat: "moral_fork", summary: "decide whether to admit a mistake" },
+        { beat: "test", summary: "someone else learns what really happened" },
+        { beat: "resolution", summary: "trust is rebuilt" }
+    ]
 
 });
 

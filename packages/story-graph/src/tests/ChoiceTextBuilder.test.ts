@@ -42,7 +42,7 @@ function assertGoodChoice(text: string, label: string): void {
 
     const wordCount = text.trim().split(/\s+/).length;
 
-    console.assert(wordCount >= 2 && wordCount <= 10, `${label}: expected roughly 3-10 words, got ${wordCount} ("${text}")`);
+    console.assert(wordCount >= 2 && wordCount <= 8, `${label}: expected roughly 2-8 words, got ${wordCount} ("${text}")`);
 
 }
 
@@ -50,7 +50,18 @@ function main(): void {
 
     const builder = new ChoiceTextBuilder();
 
-    // --- asked_questions: context-rich ---
+    // Design change (real browser bug): choices no longer repeat the
+    // full problem clause -- the narration shown directly above the
+    // choices already establishes it, and since every choice in a
+    // set shares the SAME narrativeState.currentProblem, repeating it
+    // in every choice made them all end in an identical phrase ("Help
+    // Barnaby -- a broken acorn cup needs mending" / "Search near --
+    // a broken acorn cup needs mending" / ...), which read like
+    // broken, repetitive Q&A rather than distinct choices. Choices
+    // are now short, distinct actions; target names are preserved
+    // where relevant.
+
+    // --- asked_questions ---
 
     {
 
@@ -58,31 +69,13 @@ function main(): void {
 
         const text = builder.build(c, narrativeState({ currentProblem: "the fallen branch" }));
 
-        assertGoodChoice(text, "asked_questions rich");
+        assertGoodChoice(text, "asked_questions");
 
         console.assert(text.includes("Squeak"), "Expected target name preserved");
 
-        console.assert(text.includes("fallen branch"), "Expected current problem referenced");
-
-        console.assert(text !== "Ask questions", "Expected NOT the bare generic phrase");
-
     }
 
-    // --- asked_questions: context-poor (no problem) ---
-
-    {
-
-        const c = candidate({ type: "asked_questions", targetName: "Squeak" });
-
-        const text = builder.build(c, narrativeState());
-
-        assertGoodChoice(text, "asked_questions poor");
-
-        console.assert(text.includes("Squeak"), "Expected target still preserved even without a problem");
-
-    }
-
-    // --- observed: context-rich (uses problem, not generic 'around') ---
+    // --- observed ---
 
     {
 
@@ -90,29 +83,19 @@ function main(): void {
 
         const text = builder.build(c, narrativeState({ currentProblem: "the fallen branch" }));
 
-        assertGoodChoice(text, "observed rich");
-
-        console.assert(text.includes("fallen branch"), "Expected the problem referenced instead of generic 'around'");
+        assertGoodChoice(text, "observed");
 
     }
 
-    // --- retried: requires context to be non-generic ---
+    // --- retried ---
 
     {
 
         const c = candidate({ type: "retried" });
 
-        const richText = builder.build(c, narrativeState({ currentProblem: "moving the branch" }));
+        const text = builder.build(c, narrativeState({ currentProblem: "moving the branch" }));
 
-        assertGoodChoice(richText, "retried rich");
-
-        console.assert(richText !== "Try again", "Expected contextual wording, not the bare fallback");
-
-        const poorText = builder.build(c, narrativeState());
-
-        assertGoodChoice(poorText, "retried poor");
-
-        console.assert(poorText === "Try again", "Expected the generic fallback when no problem is known");
+        assertGoodChoice(text, "retried");
 
     }
 
@@ -126,9 +109,7 @@ function main(): void {
 
         assertGoodChoice(text, "helped_npc");
 
-        console.assert(text.includes("Squeak") && text.includes("moving the branch"), "Expected both target and problem present");
-
-        console.assert(text !== "Help Squeak", "Expected richer than the bare target-only fallback");
+        console.assert(text.includes("Squeak"), "Expected target preserved");
 
     }
 
@@ -141,8 +122,6 @@ function main(): void {
         const text = builder.build(c, narrativeState({ currentProblem: "the locked gate" }));
 
         assertGoodChoice(text, "solved_puzzle");
-
-        console.assert(text.includes("locked gate"), "Expected the problem referenced");
 
     }
 
@@ -182,8 +161,6 @@ function main(): void {
 
         assertGoodChoice(text, "led_team");
 
-        console.assert(text.includes("crossing the stream"), "Expected the goal/problem referenced");
-
     }
 
     // --- No spoilers: consequence text must never appear in choice text ---
@@ -211,6 +188,40 @@ function main(): void {
         const text = builder.build(c, narrativeState());
 
         assertGoodChoice(text, "no target fallback");
+
+    }
+
+    // --- Critical regression: three choices sharing the SAME
+    // narrativeState.currentProblem must NOT all end up identical or
+    // even near-identical (the exact reported bug: all three choices
+    // ending in "-- a broken acorn cup needs mending"). ---
+
+    {
+
+        const state = narrativeState({ currentProblem: "a broken acorn cup needs mending" });
+
+        const texts = [
+            builder.build(candidate({ type: "helped_npc", targetName: "Barnaby" }), state),
+            builder.build(candidate({ type: "explored" }), state),
+            builder.build(candidate({ type: "failed_puzzle" }), state)
+        ];
+
+        console.assert(
+            new Set(texts).size === texts.length,
+            `Expected all three choices to be genuinely distinct, got ${JSON.stringify(texts)}`
+        );
+
+        // helped_npc/explored are target- or action-grounded and
+        // never repeat the problem; only no-target action types
+        // (failed_puzzle here) reference it, and only when they
+        // genuinely need grounding ("Give it a try" alone is too
+        // vague -- "it" has no antecedent).
+        const repeatCount = texts.filter(t => t.includes("acorn cup needs mending")).length;
+
+        console.assert(
+            repeatCount <= 1,
+            `Expected at most one choice to reference the problem (avoiding the reported all-three-identical bug), got ${JSON.stringify(texts)}`
+        );
 
     }
 

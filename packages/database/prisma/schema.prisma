@@ -20,6 +20,12 @@ model User {
   // bcrypt hash string (embeds its own salt + cost factor -- no
   // separate passwordSalt column needed, unlike v1's scrypt hasher).
   passwordHash String
+
+  // BYOK (Part 4): AES-256-GCM encrypted Gemini API key -- see
+  // ApiKeyEncryption. Never the plaintext key, never returned to the
+  // frontend once saved (routes only ever report connected/not).
+  geminiApiKeyEncrypted String?
+
   createdAt    DateTime @default(now())
 
   @@map("users")
@@ -171,6 +177,11 @@ model AdventureRecord {
   // Correction pass: short non-prose seed phrase for the root
   // node's opening narration -- see Adventure.premise.
   premise       String   @default("")
+  // Stabilization pass: distinct short situation phrase -- see
+  // Adventure.initialProblem.
+  initialProblem String  @default("")
+  // Story arc pass: the authored 5-beat plot outline.
+  plotOutline    Json    @default("[]")
   rootNodeId    String
   createdAt     DateTime @default(now())
 

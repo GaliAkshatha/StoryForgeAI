@@ -40,28 +40,33 @@ export class GeminiTextRenderer implements TextRenderer {
         request: RenderRequest
     ): string {
 
+        const isOpening = request.eventType === "adventure_opening";
+
         return (
             `You are a renderer, not a story engine. An event has already been decided -- your only job ` +
             `is to describe it in prose. Do not invent characters, items, rewards, or outcomes. Do not change ` +
             `what happened. Age-appropriate vocabulary for a ${request.ageRange} year old. Maximum ` +
             `${request.maxSentences} sentences. Write at least one full sentence -- a single fragment or ` +
             `isolated phrase is not acceptable, even if brief. Return narration only, no JSON, no preamble.\n\n` +
+            (isOpening
+                ? `Write the OPENING of a children's story. Start with ONE short sensory or atmospheric detail ` +
+                  `(a sound, the light, the air, something small moving) to set a sense of place -- give the ` +
+                  `reader a moment to arrive before anything happens. THEN naturally introduce ${request.actorName} ` +
+                  `as the one experiencing this. ONLY THEN lead into the situation below. Do not jump straight ` +
+                  `from arrival into the situation with no space in between -- "Ak steps into the wood. A ` +
+                  `squirrel scatters berries..." is too abrupt, a status report, not a story opening.` +
+                  (request.targetName
+                    ? ` If another character appears in the situation, use their actual name (${request.targetName}) ` +
+                      `the first time they're mentioned -- never describe them only generically (e.g. "a small ` +
+                      `squirrel") when they have a name.`
+                    : ``
+                  ) +
+                  `\n\n`
+                : ""
+            ) +
             `Location: ${request.location}\n` +
             `Actor: ${request.actorName}\n` +
             (request.targetName ? `With: ${request.targetName}\n` : "") +
-            // Was `What happened: ${actorName} ${narrativeSeed}.` --
-            // that hardcoded grammatical fusion only reads correctly
-            // when narrativeSeed is an action-verb phrase meant to
-            // follow the actor's name (e.g. "helps Fenn with
-            // something"). It breaks for a scene-setting seed like
-            // the root node's premise ("a small mouse named Squeak
-            // looks worried near a fallen branch"), producing a
-            // nonsensical fused sentence fragment -- which is what
-            // caused a real 3-token, 11-character root narration.
-            // Presenting the situation as its own labeled fact lets
-            // the model construct a correct sentence for either
-            // shape, the same way it already does with the separate
-            // Actor/Location/With facts above.
             `Situation: ${request.narrativeSeed}\n` +
             `Tone: ${request.tone}\n`
         );

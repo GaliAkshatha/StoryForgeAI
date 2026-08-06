@@ -97,10 +97,11 @@ export function reportRoutes(app: AppContainer): Router {
         }
         catch (error) {
 
-            res.status(500).json({
-                error: error instanceof Error ? error.message : "Could not generate trend summary."
-            });
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
 
+            res.status(500).json({
+                error: "Could not generate trend summary."
+            });
         }
 
     });

@@ -12,6 +12,7 @@ import { parentRoutes } from "./routes/parentRoutes";
 import { childrenRoutes } from "./routes/childrenRoutes";
 import { adventureRoutes } from "./routes/adventureRoutes";
 import { reportRoutes } from "./routes/reportRoutes";
+import { settingsRoutes } from "./routes/settingsRoutes";
 
 const app = express();
 
@@ -50,6 +51,8 @@ const container = new AppContainer({
 
     jwtSecret: process.env.JWT_SECRET,
 
+    encryptionKey: process.env.ENCRYPTION_KEY,
+
     tokenTtlSeconds: process.env.JWT_TTL_SECONDS
         ? Number(process.env.JWT_TTL_SECONDS)
         : undefined
@@ -71,6 +74,7 @@ app.use("/api/children", childrenRoutes(container));
 app.use("/api/adventures", adventureRoutes(container));
 
 app.use("/api/reports", reportRoutes(container));
+app.use("/api/settings", settingsRoutes(container));
 
 const port = Number(process.env.PORT ?? 4000);
 

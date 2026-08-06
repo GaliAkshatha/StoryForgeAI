@@ -161,6 +161,33 @@ export const api = {
 
     },
 
+    // BYOK -- these call the already-existing /settings/api-key
+    // routes (built and tested separately from this frontend work).
+    // No backend change here, just the frontend finally using them.
+    getApiKeyStatus(token: string) {
+
+        return request<{ connected: boolean }>("/settings/api-key", { token });
+
+    },
+
+    setApiKey(token: string, apiKey: string) {
+
+        return request<{ connected: boolean }>(
+            "/settings/api-key",
+            { method: "PUT", token, body: JSON.stringify({ apiKey }) }
+        );
+
+    },
+
+    removeApiKey(token: string) {
+
+        return request<{ connected: boolean }>(
+            "/settings/api-key",
+            { method: "DELETE", token }
+        );
+
+    },
+
     listChildren(token: string) {
 
         return request<{ children: ChildProfile[] }>("/children", { token });

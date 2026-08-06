@@ -43,6 +43,10 @@ interface MetadataLLMOutput {
 
     premise: string;
 
+    initialProblem: string;
+
+    plotOutline: Adventure["plotOutline"];
+
 }
 
 // Correction pass: the ONLY thing Gemini is asked to invent at
@@ -137,7 +141,11 @@ export class AdventureMetadataGenerator {
 
             genome: output.genome,
 
-            premise: output.premise
+            premise: output.premise,
+
+            initialProblem: output.initialProblem,
+
+            plotOutline: output.plotOutline
 
         };
 
@@ -169,6 +177,14 @@ export class AdventureMetadataGenerator {
 
         if (!output.premise) {
             throw new Error("Metadata output missing premise.");
+        }
+
+        if (!output.initialProblem) {
+            throw new Error("Metadata output missing initialProblem.");
+        }
+
+        if (!Array.isArray(output.plotOutline) || output.plotOutline.length !== 5) {
+            throw new Error("Metadata output missing a well-formed 5-beat plotOutline.");
         }
 
     }

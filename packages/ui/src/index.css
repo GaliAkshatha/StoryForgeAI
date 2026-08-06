@@ -28,6 +28,41 @@ body {
     border: 1px solid rgba(240, 223, 180, 0.15);
 }
 
+/* Manuscript-style ornamental frame: a double rule (outer hairline +
+   inset border) with small corner flourishes, so a "page" reads as
+   an actual illuminated page rather than a rounded SaaS card. */
+.manuscript-frame {
+    position: relative;
+    border: 1px solid rgba(255, 180, 84, 0.35);
+    box-shadow: inset 0 0 0 4px rgba(27, 16, 53, 0.6), inset 0 0 0 5px rgba(255, 180, 84, 0.18);
+}
+
+.manuscript-frame::before,
+.manuscript-frame::after,
+.manuscript-frame > .corner-tl,
+.manuscript-frame > .corner-br {
+    content: "";
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-color: theme("colors.ember");
+    opacity: 0.7;
+}
+
+.manuscript-frame::before {
+    top: 6px;
+    left: 6px;
+    border-top: 2px solid;
+    border-left: 2px solid;
+}
+
+.manuscript-frame::after {
+    bottom: 6px;
+    right: 6px;
+    border-bottom: 2px solid;
+    border-right: 2px solid;
+}
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.001ms !important;

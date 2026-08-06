@@ -141,7 +141,11 @@ export class AdventureCompiler {
 
             location: input.location,
 
-            premise: adventure.premise
+            premise: adventure.premise,
+
+            initialProblem: adventure.initialProblem,
+
+            plotOutline: adventure.plotOutline
 
         });
 

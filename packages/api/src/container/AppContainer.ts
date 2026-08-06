@@ -1,5 +1,6 @@
 import {
     AuthService,
+    ApiKeyEncryption,
     InMemoryUserRepository,
     UserRepository
 } from "@storyforge/identity";
@@ -57,9 +58,9 @@ import {
 
 import {
     DependencyContainer,
+    DependencyContainerConfig,
     AdventureRuntime,
-    WorkflowRuntime,
-    DependencyContainerConfig
+    WorkflowRuntime
 } from "@storyforge/workflow-engine";
 
 export interface AppConfig extends DependencyContainerConfig {
@@ -74,6 +75,12 @@ export interface AppConfig extends DependencyContainerConfig {
     jwtSecret: string;
 
     tokenTtlSeconds?: number;
+
+    // BYOK (Part 4): server-side secret used to encrypt user-provided
+    // Gemini API keys at rest. Without it, setApiKey/removeApiKey are
+    // unavailable (AuthService throws a clear error) but the app
+    // still runs on the global GEMINI_API_KEY as before.
+    encryptionKey?: string;
 
 }
 
@@ -109,6 +116,23 @@ export class AppContainer {
     readonly storyWorkflow?: WorkflowRuntime;
 
     readonly prisma?: PrismaClient;
+
+    // BYOK (Part 4, completed): per-user AdventureRuntime instances,
+    // each built with that user's own decrypted Gemini key instead of
+    // the global one. Built lazily on first gameplay request per user
+    // (constructing DependencyContainer is cheap -- pure object-graph
+    // wiring, no network I/O), then cached and reused across that
+    // user's subsequent requests. Concurrent requests from DIFFERENT
+    // users must never share one LLMClient instance whose key gets
+    // mutated in place -- Node's single-threaded event loop still
+    // interleaves concurrent async requests, so a shared mutable key
+    // would risk one user's request using another user's key
+    // mid-flight. A fresh container per user avoids that entirely.
+    private readonly perUserRuntimes = new Map<string, AdventureRuntime>();
+
+    private static readonly MAX_CACHED_USER_RUNTIMES = 200;
+
+    private readonly baseAiConfig: DependencyContainerConfig;
 
     constructor(config: AppConfig) {
 
@@ -186,13 +210,17 @@ export class AppContainer {
 
         }
 
-        this.auth = new AuthService(userRepository, {
+        this.auth = new AuthService(
+            userRepository,
+            {
 
-            jwtSecret: config.jwtSecret,
+                jwtSecret: config.jwtSecret,
 
-            tokenTtlSeconds: config.tokenTtlSeconds
+                tokenTtlSeconds: config.tokenTtlSeconds
 
-        });
+            },
+            config.encryptionKey ? new ApiKeyEncryption(config.encryptionKey) : undefined
+        );
 
         this.parents = new ParentService(parentRepository);
 
@@ -200,7 +228,7 @@ export class AppContainer {
 
         this.learning = new LearningService(learningRepository);
 
-        this.ai = new DependencyContainer({
+        this.baseAiConfig = {
 
             ...config,
 
@@ -220,7 +248,9 @@ export class AppContainer {
 
             achievementRepository
 
-        });
+        };
+
+        this.ai = new DependencyContainer(this.baseAiConfig);
 
         this.adventures = new AdventureRuntime(this.ai);
 
@@ -255,9 +285,80 @@ export class AppContainer {
 
     }
 
+    // Must be called whenever a user's key changes (set/removed) --
+    // otherwise they'd keep hitting a cached runtime built with their
+    // OLD key (or, after removal, silently keep using a key they
+    // just revoked).
+    invalidateUserRuntime(
+        userId: string
+    ): void {
+
+        this.perUserRuntimes.delete(userId);
+
+    }
+
     async shutdown(): Promise<void> {
 
         await this.prisma?.$disconnect();
+
+    }
+
+    // BYOK (Part 4, completion): the method routes actually call.
+    // Falls back to the shared global runtime (this.adventures) when
+    // the user has no key of their own, or when API key management
+    // isn't configured (no ENCRYPTION_KEY) -- so BYOK is additive,
+    // never a requirement to keep the app working.
+    async getAdventureRuntimeForUser(
+        userId: string
+    ): Promise<AdventureRuntime> {
+
+        const cached = this.perUserRuntimes.get(userId);
+
+        if (cached) {
+            return cached;
+        }
+
+        const userApiKey = await this.auth.getDecryptedApiKey(userId);
+
+        if (!userApiKey) {
+            return this.adventures;
+        }
+
+        const userContainer = new DependencyContainer({
+
+            ...this.baseAiConfig,
+
+            // The one field that actually changes -- every
+            // repository, and every other setting, is shared with
+            // the global container so persistence stays unified.
+            geminiApiKey: userApiKey,
+
+            // A per-user key means a per-user LLMClient is required
+            // too -- llmClient (if the base config set one, e.g. in
+            // tests) must NOT be reused here, or the override above
+            // would have no effect.
+            llmClient: undefined
+
+        });
+
+        const userRuntime = new AdventureRuntime(userContainer);
+
+        if (this.perUserRuntimes.size >= AppContainer.MAX_CACHED_USER_RUNTIMES) {
+
+            // Simple bounded cache: evict the oldest entry (Map
+            // preserves insertion order) rather than let this grow
+            // unboundedly across a long-running server's lifetime.
+            const oldestKey = this.perUserRuntimes.keys().next().value;
+
+            if (oldestKey !== undefined) {
+                this.perUserRuntimes.delete(oldestKey);
+            }
+
+        }
+
+        this.perUserRuntimes.set(userId, userRuntime);
+
+        return userRuntime;
 
     }
 

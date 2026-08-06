@@ -33,7 +33,17 @@ const METADATA_RESPONSE = JSON.stringify({
         vocabulary: "simple"
     },
 
-    premise: "a fox named Fenn waits quietly at the treeline"
+    premise: "a fox named Fenn waits quietly at the treeline",
+
+    initialProblem: "a fallen branch blocks the path",
+
+    plotOutline: [
+        { beat: "hook", summary: "a friend needs help with a fallen branch" },
+        { beat: "complication", summary: "the branch is heavier than expected" },
+        { beat: "moral_fork", summary: "decide whether to admit a mistake" },
+        { beat: "test", summary: "someone else learns what really happened" },
+        { beat: "resolution", summary: "trust is rebuilt" }
+    ]
 
 });
 

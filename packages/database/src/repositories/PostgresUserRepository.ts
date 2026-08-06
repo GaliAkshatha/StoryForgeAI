@@ -9,6 +9,8 @@ interface UserRecord {
 
     passwordHash: string;
 
+    geminiApiKeyEncrypted: string | null;
+
     createdAt: Date;
 
 }
@@ -62,6 +64,8 @@ export class PostgresUserRepository implements UserRepository {
 
                 passwordHash: user.passwordHash,
 
+                geminiApiKeyEncrypted: user.geminiApiKeyEncrypted ?? null,
+
                 createdAt: new Date(user.createdAt)
 
             },
@@ -71,6 +75,8 @@ export class PostgresUserRepository implements UserRepository {
                 email: user.email.toLowerCase(),
 
                 passwordHash: user.passwordHash,
+
+                geminiApiKeyEncrypted: user.geminiApiKeyEncrypted ?? null,
 
             }
 
@@ -89,6 +95,8 @@ export class PostgresUserRepository implements UserRepository {
             email: record.email,
 
             passwordHash: record.passwordHash,
+
+            geminiApiKeyEncrypted: record.geminiApiKeyEncrypted ?? undefined,
 
             createdAt: record.createdAt.toISOString()
 

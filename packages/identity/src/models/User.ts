@@ -12,6 +12,10 @@ export interface User {
     // used Node's scrypt, which required one).
     passwordHash: string;
 
+    // BYOK (Part 4): AES-256-GCM encrypted, never the plaintext key.
+    // Absent means the user hasn't connected their own key yet.
+    geminiApiKeyEncrypted?: string;
+
     createdAt: string;
 
 }

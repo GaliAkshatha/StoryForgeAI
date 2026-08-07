@@ -1,0 +1,47 @@
+# Render deployment config for StoryForgeAI.
+#
+# Root cause of the deploy failure this fixes: Render was very likely
+# configured with "Root Directory" set to packages/api (or an
+# equivalent scoped build command), which runs `tsc` for the api
+# package alone. This is a pnpm workspace -- api depends on sibling
+# packages (@storyforge/identity, @storyforge/database,
+# @storyforge/story-graph, etc.) via `workspace:*`, which resolve to
+# each sibling's own `dist/` folder. If those siblings are never
+# built first, TypeScript can't find their type declarations at all
+# -- exactly the "Cannot find module '@storyforge/...'" errors
+# reported. The fix is structural: build from the REPO ROOT (never
+# scope the Root Directory to packages/api), so `pnpm -r build`
+# builds every workspace package in dependency order before api's own
+# build runs.
+#
+# In the Render dashboard, this file is auto-detected when present at
+# the repository root -- no manual "Root Directory" setting needed
+# (leave it blank/default, i.e. the repo root).
+
+services:
+  - type: web
+    name: storyforge-api
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile=false && pnpm run build
+    startCommand: node packages/api/dist/index.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      # Set these in the Render dashboard (Environment tab), not here
+      # -- they're secrets and shouldn't be committed to the repo:
+      #   PERSISTENCE        postgres (or memory for a trial deploy --
+      #                      data is lost on every restart in memory mode)
+      #   DATABASE_URL       your Postgres connection string (required
+      #                      when PERSISTENCE=postgres; Render can
+      #                      provision a free Postgres instance and
+      #                      inject this automatically if you add one)
+      #   JWT_SECRET         a long random string
+      #   ENCRYPTION_KEY     a long random string (16+ chars) -- enables
+      #                      BYOK API key storage; the app still runs
+      #                      without it, just without that feature
+      #   GEMINI_API_KEY     optional -- only needed as a fallback for
+      #                      users who haven't connected their own key
+      #   PORT               Render sets this automatically; the app
+      #                      already reads process.env.PORT

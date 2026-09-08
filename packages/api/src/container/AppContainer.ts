@@ -109,6 +109,10 @@ export class AppContainer {
 
     readonly adventures: AdventureRuntime;
 
+    // Guest demo runtime -- see constructor for why this is a
+    // genuinely separate object graph, not just a config flag.
+    readonly demoAdventures: AdventureRuntime;
+
     // Phase O: no longer constructed by default -- see the
     // constructor for why. Optional so nothing else needs to change;
     // any future caller that wants it can construct it directly from
@@ -163,6 +167,24 @@ export class AppContainer {
         let achievementRepository: AchievementRepository | undefined;
 
         if (persistence === "postgres") {
+
+            // Fail fast, at startup, with a message that actually
+            // says what to do -- the alternative (what just happened
+            // in practice) is the server reports "listening" and
+            // looks healthy, then every single request throws a raw
+            // PrismaClientInitializationError the moment it touches
+            // the database, which is a confusing way to discover a
+            // config problem.
+            if (!process.env.DATABASE_URL) {
+
+                throw new Error(
+                    "PERSISTENCE is set to \"postgres\" (or unset, which defaults to " +
+                    "\"postgres\") but DATABASE_URL is not set. For local development " +
+                    "without a database, set PERSISTENCE=memory in packages/api/.env. " +
+                    "For a real deployment, set DATABASE_URL to your Postgres connection string."
+                );
+
+            }
 
             this.prisma = createPrismaClient();
 
@@ -253,6 +275,32 @@ export class AppContainer {
         this.ai = new DependencyContainer(this.baseAiConfig);
 
         this.adventures = new AdventureRuntime(this.ai);
+
+        // Guest demo (no account required): a genuinely separate
+        // DependencyContainer, built with ONLY the LLM-related config
+        // (provider/geminiApiKey/model) and deliberately NO repository
+        // overrides -- DependencyContainer falls back to its own
+        // in-memory repositories when none are given. This is what
+        // guarantees guest playthroughs can never touch the real
+        // Postgres tables regardless of the app's actual PERSISTENCE
+        // setting: it's not "memory mode by config", it's a
+        // structurally separate object graph with its own in-memory
+        // store, isolated from this.ai entirely.
+        this.demoAdventures = new AdventureRuntime(new DependencyContainer({
+
+            provider: config.provider,
+
+            geminiApiKey: config.geminiApiKey,
+
+            geminiModel: config.geminiModel,
+
+            ollamaBaseUrl: config.ollamaBaseUrl,
+
+            ollamaModel: config.ollamaModel,
+
+            embeddingModel: config.embeddingModel
+
+        }));
 
         this.learningGoals = new LearningGoalService({
 

@@ -42,7 +42,7 @@ function makeService(): DeterministicExpansionService {
 
 }
 
-function baseInput() {
+function baseInput(narrativeStateOverrides: Partial<{ currentProblem: string | undefined }> = {}) {
 
     const worldState = createInitialWorldState({
         worldId: "world-1", childId: "child-1", location: "the Whispering Wood", moral: "honesty", domain: "ethics"
@@ -68,7 +68,9 @@ function baseInput() {
 
             currentGoal: "figure out what's happening",
 
-            currentProblem: "a mystery in the Whispering Wood",
+            currentProblem: "currentProblem" in narrativeStateOverrides
+                ? narrativeStateOverrides.currentProblem
+                : "a mystery in the Whispering Wood",
 
             establishedFacts: [] as string[],
 
@@ -272,7 +274,7 @@ async function main(): Promise<void> {
 
         const narrationService = new NarrationRenderingService(router, nodeRepo);
 
-        const result = await service.expand(baseInput());
+        const result = await service.expand(baseInput({ currentProblem: undefined }));
 
         await nodeRepo.saveMany(result.nodes);
 
@@ -287,7 +289,7 @@ async function main(): Promise<void> {
 
         console.assert(
             richNodes.length > 0 && trivialNodes.length > 0,
-            "Expected this scenario to include at least one rich and one trivial candidate to test both paths"
+            "Expected this no-problem scenario to include at least one rich and one trivial candidate to test both paths"
         );
 
         const firstRich = await narrationService.ensureRendered(richNodes[0]);
@@ -432,6 +434,36 @@ async function main(): Promise<void> {
         console.assert(
             JSON.stringify(stripCreatedAt(resultA)) === JSON.stringify(stripCreatedAt(resultB)),
             "Expected identical state+seed+memory to produce identical selection"
+        );
+
+    }
+
+    // =========================================================
+    // Correctness fix: with an active problem present, every event
+    // type whose narration could reference it (open-vocabulary
+    // content) must be forced to "rich" (Gemini), regardless of its
+    // own static default complexity -- the deterministic template
+    // path must never be responsible for grammatically incorporating
+    // free text. This is the actual fix for the recurring class of
+    // broken narration (dangling conjunctions, missing articles,
+    // "connected to a full sentence").
+    // =========================================================
+
+    {
+
+        const result = await service.expand(baseInput({ currentProblem: "a broken magical lantern needs fixing" }));
+
+        const trivialNodes = result.nodes.filter(node => node.pendingRenderRequest?.complexity === "trivial");
+
+        console.assert(
+            trivialNodes.length === 0,
+            `Expected NO trivial (template-rendered) nodes when a problem is active, got ${trivialNodes.length}: ` +
+            `${trivialNodes.map(n => n.pendingRenderRequest?.eventType).join(", ")}`
+        );
+
+        console.assert(
+            result.nodes.every(node => node.pendingRenderRequest?.complexity === "rich"),
+            "Expected every node to be forced to rich complexity when a problem is active"
         );
 
     }

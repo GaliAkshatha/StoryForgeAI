@@ -19,6 +19,14 @@ export interface SemanticEvent {
 
         maxSentences: number;
 
+        humor?: number;
+
+        mystery?: number;
+
+        vocabulary?: string;
+
+        avoidOpenings?: string[];
+
     };
 
     scene: {
@@ -93,6 +101,7 @@ export interface SemanticEvent {
         skill: string;
 
     };
+
 
     // Personalization hint only -- never the raw parent text, never
     // forwarded to the renderer as an instruction to reference

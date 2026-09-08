@@ -294,6 +294,14 @@ export class DeterministicExpansionService {
 
                 maxSentences: semanticEvent.style.maxSentences,
 
+                humor: semanticEvent.style.humor,
+
+                mystery: semanticEvent.style.mystery,
+
+                vocabulary: semanticEvent.style.vocabulary,
+
+                avoidOpenings: semanticEvent.style.avoidOpenings,
+
                 location: semanticEvent.scene.location,
 
                 actorName: semanticEvent.actor.name,
@@ -306,9 +314,27 @@ export class DeterministicExpansionService {
 
                 skill: semanticEvent.learning?.skill,
 
+                consequenceContext: semanticEvent.consequence,
+
                 personalizationHint: semanticEvent.personalizationHint,
 
-                complexity: candidate.complexity
+                // Correctness fix: the deterministic template path
+                // must never be responsible for grammatically
+                // incorporating open-vocabulary content (the ongoing
+                // problem) -- that's what produced the recurring class
+                // of broken narration (dangling conjunctions, missing
+                // articles, "connected to a full sentence"). No amount
+                // of string cleaning can substitute for an actual
+                // language model composing the sentence. This matches
+                // how production AI narrative systems handle the same
+                // problem: structured state is used to GENERATE text
+                // every time it's open-vocabulary, never spliced by
+                // hand. Only event types that never reference the
+                // problem in their content stay eligible for the free
+                // template path.
+                complexity: this.requiresOpenVocabularyNarration(candidate.type, input.narrativeState)
+                    ? "rich"
+                    : candidate.complexity
 
             };
 
@@ -380,6 +406,29 @@ export class DeterministicExpansionService {
         }
 
         return { entryChoices, nodes };
+
+    }
+
+    // Small, explicit, reviewable -- same spirit as
+    // BEAT_ALIGNED_TYPES/THREAD_RESOLVING_TYPES in EventScorer.
+    // shared_resources and ignored_warning never reference the
+    // problem in SemanticEventBuilder's content for those cases, so
+    // they're excluded -- everything else has a branch that does.
+    private static readonly PROBLEM_REFERENCING_TYPES: AdventureEventType[] = [
+        "helped_npc", "led_team", "asked_questions", "solved_puzzle",
+        "failed_puzzle", "retried", "explored", "observed"
+    ];
+
+    private requiresOpenVocabularyNarration(
+        type: AdventureEventType,
+        narrativeState: NarrativeState
+    ): boolean {
+
+        const hasActiveProblem = narrativeState.activeProblem?.status === "active"
+            || Boolean(narrativeState.currentProblem);
+
+        return hasActiveProblem
+            && DeterministicExpansionService.PROBLEM_REFERENCING_TYPES.includes(type);
 
     }
 

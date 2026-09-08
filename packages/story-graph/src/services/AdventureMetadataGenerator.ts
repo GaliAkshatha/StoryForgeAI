@@ -1,4 +1,5 @@
 import { JsonParser } from "@storyforge/llm-client";
+import { AdventureEventType } from "@storyforge/shared";
 import { Adventure } from "../models/Adventure";
 import { AIServices } from "./AIServices";
 import { ADVENTURE_METADATA_SCHEMA } from "./adventureMetadataSchema";
@@ -46,6 +47,8 @@ interface MetadataLLMOutput {
     initialProblem: string;
 
     plotOutline: Adventure["plotOutline"];
+
+    choiceTemplates?: Partial<Record<AdventureEventType, string>>;
 
 }
 
@@ -145,9 +148,106 @@ export class AdventureMetadataGenerator {
 
             initialProblem: output.initialProblem,
 
-            plotOutline: output.plotOutline
+            plotOutline: output.plotOutline,
+
+            choiceTemplates: this.sanitizeChoiceTemplates(output.choiceTemplates)
 
         };
+
+    }
+
+    // Deliberately per-field, non-throwing: a malformed choice
+    // template (wrong placeholder presence, too long) drops just
+    // that ONE type, falling back to ChoiceTextBuilder's own
+    // hardcoded default for it -- never fails the whole adventure
+    // over an imperfect button phrase. Placeholder-presence is
+    // checked exactly (a simple string search, not fragile NLP)
+    // since that's a structural requirement, not a judgment call.
+    private static readonly TARGET_REQUIRING_TYPES: AdventureEventType[] = [
+        "helped_npc", "asked_questions", "shared_resources", "led_team"
+    ];
+
+    private sanitizeChoiceTemplates(
+        raw: Partial<Record<AdventureEventType, string>> | undefined
+    ): Partial<Record<AdventureEventType, string>> | undefined {
+
+        if (!raw) {
+
+            console.warn(
+                "\n===== AdventureMetadataGenerator: choiceTemplates entirely missing from LLM output " +
+                "-- falling back to hardcoded choice text for every event type this adventure ====="
+            );
+
+            return undefined;
+
+        }
+
+        const sanitized: Partial<Record<AdventureEventType, string>> = {};
+
+        const rejected: string[] = [];
+
+        for (const type of Object.keys(raw) as AdventureEventType[]) {
+
+            const value = raw[type];
+
+            if (typeof value !== "string") {
+                rejected.push(`${type}: not a string`);
+                continue;
+            }
+
+            // Real-world tolerance: normalize whatever bracket-style
+            // placeholder the model actually wrote ("{target}",
+            // "{Target}", "{TARGET}", "{name}") to the canonical
+            // "{target}" ChoiceTextBuilder expects, instead of
+            // requiring one exact byte-for-byte token -- an LLM
+            // reliably writing SOME placeholder is realistic; writing
+            // that EXACT string every time is not, and treating the
+            // latter as a hard requirement was silently discarding
+            // almost everything.
+            const normalized = value.trim().replace(/\{\s*(target|name)\s*\}/gi, "{target}");
+
+            const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+
+            if (normalized.length === 0 || normalized.length > 60 || wordCount > 8) {
+                rejected.push(`${type}: wrong length ("${value}")`);
+                continue;
+            }
+
+            const requiresTarget = AdventureMetadataGenerator.TARGET_REQUIRING_TYPES.includes(type);
+
+            const hasPlaceholder = normalized.includes("{target}");
+
+            if (requiresTarget && !hasPlaceholder) {
+                rejected.push(`${type}: missing required {target} ("${value}")`);
+                continue;
+            }
+
+            if (!requiresTarget && hasPlaceholder) {
+                // Safe to just strip it rather than reject outright --
+                // a stray placeholder on a no-target type is a minor
+                // model slip, not a structural break like the reverse
+                // case (a missing placeholder means the target can
+                // never be named at all).
+                sanitized[type] = normalized.replace("{target}", "").replace(/\s{2,}/g, " ").trim();
+                continue;
+            }
+
+            sanitized[type] = normalized;
+
+        }
+
+        if (rejected.length > 0) {
+
+            console.warn(
+                "\n===== AdventureMetadataGenerator: some choiceTemplates rejected, falling back to " +
+                "hardcoded defaults for these types =====\n" +
+                rejected.join("\n") +
+                "\n=========================================================================================\n"
+            );
+
+        }
+
+        return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 
     }
 

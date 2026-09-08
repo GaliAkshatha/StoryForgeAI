@@ -14,6 +14,7 @@ const ParentDashboardPage = lazy(() => import("./pages/ParentDashboardPage").the
 const AdventurePage = lazy(() => import("./pages/AdventurePage").then(m => ({ default: m.AdventurePage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })));
 const ApiKeySetupPage = lazy(() => import("./pages/ApiKeySetupPage").then(m => ({ default: m.ApiKeySetupPage })));
+const DemoPage = lazy(() => import("./pages/DemoPage").then(m => ({ default: m.DemoPage })));
 
 function RouteFallback() {
 
@@ -44,6 +45,8 @@ export function App() {
                             <Route path="/" element={<LandingPage />} />
 
                             <Route path="/auth" element={<ParentAuthPage />} />
+
+                            <Route path="/demo" element={<DemoPage />} />
 
                             <Route
                                 path="/setup-api-key"

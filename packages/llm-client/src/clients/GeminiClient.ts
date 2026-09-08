@@ -6,7 +6,14 @@ import { LLMRequest } from "../models/LLMRequest";
 import { LLMResponse } from "../models/LLMResponse";
 import { llmInstrumentation } from "../instrumentation/LLMInstrumentation";
 
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+// gemini-2.5-flash was the default when this was first built, but
+// Google has been cutting off NEW API keys' access to it ahead of
+// its officially published shutdown date (June 2026) -- a documented
+// pattern others have hit too, not specific to this project.
+// gemini-3.6-flash is the current GA replacement as of this change.
+// Override via GEMINI_MODEL if this needs to change again before the
+// code does.
+export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 
 // Raw response content is only ever printed when explicitly opted
 // into -- dumping every generated JSON response by default is noisy

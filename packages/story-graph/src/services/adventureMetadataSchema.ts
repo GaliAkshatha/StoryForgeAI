@@ -165,10 +165,54 @@ export const ADVENTURE_METADATA_SCHEMA = {
 
             }
 
+        },
+
+        // Choice-variety pass: instead of one fixed hardcoded phrase
+        // per event type reused identically across EVERY adventure
+        // (the actual cause of choices feeling "lame" -- "Take the
+        // lead with X" every single time, regardless of theme), each
+        // adventure gets its own short, tonally-matched phrase per
+        // type, generated once here alongside everything else. Use
+        // the literal placeholder "{target}" where the phrase needs
+        // to name who it's directed at -- never a real name (this is
+        // a template, filled in deterministically at choice-build
+        // time, not live text). Types with no target (solved_puzzle,
+        // failed_puzzle, retried, ignored_warning, explored, observed)
+        // must NOT include "{target}". Every phrase: 2-6 words, an
+        // ACTION the player can take, never a hint at what happens
+        // next or how it turns out.
+        choiceTemplates: {
+
+            type: "OBJECT",
+
+            properties: {
+
+                helped_npc: { type: "STRING" },
+                asked_questions: { type: "STRING" },
+                shared_resources: { type: "STRING" },
+                led_team: { type: "STRING" },
+                solved_puzzle: { type: "STRING" },
+                failed_puzzle: { type: "STRING" },
+                retried: { type: "STRING" },
+                ignored_warning: { type: "STRING" },
+                explored: { type: "STRING" },
+                observed: { type: "STRING" }
+
+            },
+
+            required: [
+                "helped_npc", "asked_questions", "shared_resources", "led_team",
+                "solved_puzzle", "failed_puzzle", "retried", "ignored_warning",
+                "explored", "observed"
+            ]
+
         }
 
     },
 
-    required: ["title", "characters", "world", "learningPlan", "genome", "premise", "initialProblem", "plotOutline"]
+    required: [
+        "title", "characters", "world", "learningPlan", "genome",
+        "premise", "initialProblem", "plotOutline", "choiceTemplates"
+    ]
 
 };

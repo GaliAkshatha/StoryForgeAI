@@ -1,13 +1,20 @@
 import { TextRenderer, RenderRequest, RenderResult } from "./TextRenderer";
 import { LLMClient } from "../interfaces/LLMClient";
 
-const MAX_OUTPUT_TOKENS = 120;
+const MAX_OUTPUT_TOKENS = 1024;
 
-// Phase K: "You are a renderer, not the story engine." This prompt
-// is deliberately tiny compared to AdventureBlueprintGenerator's --
-// one already-decided event, plain text output (not JSON -- Phase K:
-// "avoid large JSON responses when only narration is required"),
-// bounded output tokens, no WorldState, no history.
+// Novel-immersion upgrade: second-person ("you/your") literary prose.
+// The reader IS the protagonist — never referred to by name in
+// narration. Sentence count follows request.maxSentences (varies by
+// plot beat -- see SemanticEventBuilder), not a fixed count, so
+// pacing still differs between a quiet exploratory turn and the
+// moral_fork/test beats where the story needs more room.
+//
+// Token budget rationale: Gemini 2.5 Flash includes internal
+// "thinking" tokens in maxOutputTokens. At 220, thinking consumed
+// ~200 tokens leaving only ~9 for actual prose → truncation →
+// quality gate rejection → template fallback. 1024 gives ample
+// headroom for thinking (~200-400) plus a full paragraph (~150-200).
 export class GeminiTextRenderer implements TextRenderer {
 
     constructor(
@@ -43,34 +50,67 @@ export class GeminiTextRenderer implements TextRenderer {
         const isOpening = request.eventType === "adventure_opening";
 
         return (
-            `You are a renderer, not a story engine. An event has already been decided -- your only job ` +
-            `is to describe it in prose. Do not invent characters, items, rewards, or outcomes. Do not change ` +
-            `what happened. Age-appropriate vocabulary for a ${request.ageRange} year old. Maximum ` +
-            `${request.maxSentences} sentences. Write at least one full sentence -- a single fragment or ` +
-            `isolated phrase is not acceptable, even if brief. Return narration only, no JSON, no preamble.\n\n` +
+            `You are a master children's chapter-book author. Write in SECOND PERSON — the reader IS ` +
+            `the protagonist. Use "you" and "your," NEVER use the protagonist's name in the prose. ` +
+            `Write up to ${request.maxSentences} vivid, flowing sentences suited for age ${request.ageRange}. ` +
+            `Open with a sensory scene beat, build through the action with authentic emotion and ` +
+            `character interaction, close with a consequence or emotional hook that pulls the reader ` +
+            `forward. Vary sentence rhythm. Include one piece of natural dialogue where it fits. ` +
+            `Write like a great children's author -- alive, specific, never mechanical. ` +
+            `Narration only — no JSON, no preamble, no choice options.\n\n` +
             (isOpening
-                ? `Write the OPENING of a children's story. Start with ONE short sensory or atmospheric detail ` +
-                  `(a sound, the light, the air, something small moving) to set a sense of place -- give the ` +
-                  `reader a moment to arrive before anything happens. THEN naturally introduce ${request.actorName} ` +
-                  `as the one experiencing this. ONLY THEN lead into the situation below. Do not jump straight ` +
-                  `from arrival into the situation with no space in between -- "Ak steps into the wood. A ` +
-                  `squirrel scatters berries..." is too abrupt, a status report, not a story opening.` +
+                ? `OPENING SCENE: Immerse the reader in the setting first — sounds, smells, textures. ` +
+                  `Then reveal the immediate situation with emotional stakes and warmth.` +
                   (request.targetName
-                    ? ` If another character appears in the situation, use their actual name (${request.targetName}) ` +
-                      `the first time they're mentioned -- never describe them only generically (e.g. "a small ` +
-                      `squirrel") when they have a name.`
+                    ? ` Introduce ${request.targetName} with distinct personality through action or dialogue.`
                     : ``
                   ) +
                   `\n\n`
                 : ""
             ) +
-            `Location: ${request.location}\n` +
-            `Actor: ${request.actorName}\n` +
-            (request.targetName ? `With: ${request.targetName}\n` : "") +
-            `Situation: ${request.narrativeSeed}\n` +
-            `Tone: ${request.tone}\n`
+            `Setting: ${request.location}\n` +
+            `Protagonist identity: ${request.actorName} (context only — do NOT use this name in prose, use "you")\n` +
+            (request.targetName ? `Companion: ${request.targetName}\n` : "") +
+            `Action: ${request.narrativeSeed}\n` +
+            (request.consequenceContext ? `Impact & Outcome: ${request.consequenceContext}\n` : "") +
+            `Tone: ${request.tone}\n` +
+            (request.vocabulary ? `Vocabulary level: ${request.vocabulary}\n` : "") +
+            this.craftGuidance(request)
         );
 
     }
 
+    // Turns the adventure's own genome (generated once at adventure
+    // creation, previously discarded immediately after) into actual
+    // writing guidance instead of being thrown away -- this is what
+    // lets two adventures with different humor/mystery balances
+    // genuinely read differently, rather than every adventure
+    // getting identical instructions regardless of the story Gemini
+    // itself designed. Deliberately terse (one short line per signal,
+    // only when the level is actually pronounced) to keep this
+    // cheap -- not a rewrite of the whole prompt.
+    private craftGuidance(
+        request: RenderRequest
+    ): string {
+
+        const notes: string[] = [];
+
+        if (request.humor !== undefined && request.humor > 0.6) {
+            notes.push("let a little genuine humor come through");
+        }
+
+        if (request.mystery !== undefined && request.mystery > 0.6) {
+            notes.push("lean into a sense of mystery -- don't over-explain");
+        }
+
+        if (request.avoidOpenings && request.avoidOpenings.length > 0) {
+            const quoted = request.avoidOpenings.map(o => `"${o}..."`).join(", ");
+            notes.push(`don't start this the same way as recent turns (avoid opening like ${quoted})`);
+        }
+
+        return notes.length > 0 ? `Also: ${notes.join("; ")}.\n` : "";
+
+    }
+
 }
+

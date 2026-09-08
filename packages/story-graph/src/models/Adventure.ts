@@ -1,4 +1,5 @@
 import { PlotBeat } from "@storyforge/simulation-engine";
+import { AdventureEventType } from "@storyforge/shared";
 
 export interface AdventureCharacter {
 
@@ -126,6 +127,17 @@ export interface Adventure {
     // disconnected events; the deterministic engine advances through
     // these as ChapterProgressionEngine's phase advances.
     plotOutline: PlotBeat[];
+
+    // Choice-variety pass: per-adventure choice phrase templates
+    // (one per event type), generated once alongside everything else
+    // above so choice buttons match THIS adventure's tone instead of
+    // reusing one fixed hardcoded set across every adventure ever
+    // played. Optional and PARTIAL on purpose -- each field is
+    // validated independently by AdventureMetadataGenerator, and any
+    // field that fails validation is simply dropped rather than
+    // failing the whole adventure; ChoiceTextBuilder falls back to
+    // its own hardcoded default for any type missing here.
+    choiceTemplates?: Partial<Record<AdventureEventType, string>>;
 
     rootNodeId: string;
 

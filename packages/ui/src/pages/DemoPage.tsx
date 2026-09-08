@@ -1,134 +1,95 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-    api,
-    ChildProfile,
-    Choice,
-    LearningObjective,
-    Reflection,
-    LearningAnalyticsResult
-} from "../api/client";
-import { useSession } from "../state/SessionContext";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { api, Choice, Reflection } from "../api/client";
 import { ParchmentCard } from "../components/ParchmentCard";
 import { RuneButton } from "../components/RuneButton";
 import { GuideCharacter } from "../components/GuideCharacter";
 import { Starfield } from "../components/Starfield";
-import { NarrationControls } from "../components/NarrationControls";
 import { LoadingJourney } from "../components/LoadingJourney";
 import { ErrorNotice } from "../components/ErrorNotice";
+import { NarrationControls } from "../components/NarrationControls";
 
-type Stage =
-    | "setup"
-    | "opening-loading"
-    | "objective-reveal"
-    | "playing"
-    | "resolving"
-    | "ended";
+const SKILLS = [
+    { key: "honesty", label: "Honesty" },
+    { key: "empathy", label: "Empathy" },
+    { key: "courage", label: "Courage" },
+    { key: "sharing", label: "Sharing" }
+];
 
-interface AdventureContext {
-    worldId: string;
-    sessionId: string;
-}
+const LOCATIONS = [
+    "the Whispering Wood", "a quiet space station", "a pirate cove", "a dragon's mountain trail"
+];
 
-export function AdventurePage() {
+type Stage = "setup" | "loading" | "playing" | "resolving" | "ended";
 
-    const { childId } = useParams<{ childId: string }>();
-
-    const { token } = useSession();
+// The guest demo: a REAL adventure through the actual engine (same
+// AdventureRuntime, same candidate/constraint/scoring pipeline, same
+// Gemini narration), reachable with zero account. The only thing an
+// account actually adds is persistence -- nothing here is ever
+// written to app.learning or any repository (see demoRoutes.ts).
+//
+// Novel-immersion upgrade: accumulates full story text like a
+// chapter book, choices only at real decision forks, "Turn the
+// page" for narration-only beats.
+export function DemoPage() {
 
     const navigate = useNavigate();
 
-    const [child, setChild] = useState<ChildProfile | null>(null);
-
     const [stage, setStage] = useState<Stage>("setup");
 
-    const [location, setLocation] = useState("the edge of the Whispering Wood");
+    const [skill, setSkill] = useState(SKILLS[0].key);
 
-    const [learningGoal, setLearningGoal] = useState("");
+    const [childName, setChildName] = useState("");
 
-    const [context, setContext] = useState<AdventureContext | null>(null);
+    const [location, setLocation] = useState(LOCATIONS[0]);
 
-    const [objective, setObjective] = useState<LearningObjective | null>(null);
+    const [context, setContext] = useState<{ worldId: string; sessionId: string } | null>(null);
 
-    // Novel immersion: the full accumulated chapter text, one entry
-    // per paragraph. Rendered as a flowing scrollable story.
+    // Novel immersion: full accumulated chapter text
     const [storyLog, setStoryLog] = useState<string[]>([]);
-
-    const [emotionalTone, setEmotionalTone] = useState("");
 
     const [choices, setChoices] = useState<Choice[]>([]);
 
-    const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
-
     const [reflection, setReflection] = useState<Reflection | null>(null);
 
-    const [analytics, setAnalytics] = useState<LearningAnalyticsResult | null>(null);
+    const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null);
 
     const [error, setError] = useState<string | null>(null);
 
-    // Ref for auto-scrolling to the newest paragraph
     const storyEndRef = useRef<HTMLDivElement>(null);
 
-    const storyContainerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-
-        if (!token || !childId) return;
-
-        api.listChildren(token).then(result => {
-
-            setChild(result.children.find(c => c.id === childId) ?? null);
-
-        });
-
-    }, [token, childId]);
-
-    // Smooth-scroll to the bottom whenever a new paragraph arrives
+    // Smooth-scroll to newest paragraph
     useEffect(() => {
 
         if (storyLog.length > 0) {
-
             storyEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-
         }
 
     }, [storyLog.length]);
 
-    async function handleStart(event: FormEvent) {
-
-        event.preventDefault();
-
-        if (!token || !childId || !learningGoal.trim()) return;
+    async function handleStart() {
 
         setError(null);
 
-        setStage("opening-loading");
+        setStage("loading");
 
         try {
 
-            const result = await api.startAdventure(token, {
-                childId,
-                location,
-                learningGoal: learningGoal.trim()
-            });
+            const result = await api.startDemo(skill, location, childName);
 
             setContext({ worldId: result.worldId, sessionId: result.sessionId });
 
-            setObjective(result.objective);
-
-            setStoryLog(result.storyLog ?? [result.narrative]);
-
-            setEmotionalTone(result.emotionalTone);
+            setStoryLog([result.narrative]);
 
             setChoices(result.choices);
 
-            setStage("objective-reveal");
+            setStage(result.isEnding ? "ended" : "playing");
 
         }
         catch (err) {
 
-            setError(err instanceof Error ? err.message : "Could not start the adventure.");
+            setError(err instanceof Error ? err.message : "Could not start the demo. Please try again.");
 
             setStage("setup");
 
@@ -138,9 +99,7 @@ export function AdventurePage() {
 
     async function handleChoose(choice: Choice) {
 
-        if (!token || !childId || !context) return;
-
-        setError(null);
+        if (!context) return;
 
         setSelectedChoiceId(choice.id);
 
@@ -148,51 +107,38 @@ export function AdventurePage() {
 
         try {
 
-            const result = await api.playTurn(token, {
-                worldId: context.worldId,
-                sessionId: context.sessionId,
-                childId,
-                selectedChoiceId: choice.id
-            });
+            const result = await api.playDemoTurn(context.worldId, context.sessionId, choice.id, childName);
 
-            setStoryLog(result.storyLog ?? [...storyLog, result.narrative]);
-
-            setEmotionalTone(result.emotionalTone);
+            setStoryLog(prev => [...prev, result.narrative]);
 
             setChoices(result.choices);
 
-            // v3: reflection/analytics only arrive when this turn
-            // concluded a chapter -- most turns leave them null, and
-            // the story simply continues (isEnding stays false).
-            setReflection(result.reflection ?? null);
+            if (result.reflection) {
+                setReflection(result.reflection);
+            }
 
-            setAnalytics(result.analytics ?? null);
+            setSelectedChoiceId(null);
 
             setStage(result.isEnding ? "ended" : "playing");
 
         }
         catch (err) {
 
-            setError(err instanceof Error ? err.message : "The story couldn't continue. Try again.");
-
-            setStage("playing");
-
-        }
-        finally {
+            setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
 
             setSelectedChoiceId(null);
+
+            setStage("playing");
 
         }
 
     }
 
-    function handlePlayAgain() {
+    function restart() {
 
         setStage("setup");
 
         setContext(null);
-
-        setObjective(null);
 
         setStoryLog([]);
 
@@ -200,109 +146,131 @@ export function AdventurePage() {
 
         setReflection(null);
 
-        setAnalytics(null);
-
-        setLearningGoal("");
+        setError(null);
 
     }
 
-    // Is there a real decision (2+ choices) or just a narration continuation?
     const hasRealChoice = choices.length > 1;
 
     return (
         <div className="relative min-h-screen px-6 py-10">
 
-            <Starfield count={20} />
+            <Starfield count={14} />
 
             <div className="relative z-10 max-w-2xl mx-auto pb-32">
 
-                <button
-                    onClick={() => navigate("/dashboard")}
-                    className="text-parchmentDim text-sm mb-6 hover:text-ember"
-                >
-                    ← Back to the Study
-                </button>
+                <header className="flex items-center justify-between mb-8">
 
-                <h1 className="font-display text-2xl text-parchment mb-8 text-center">
-                    {child ? `${child.name}'s Storybook` : "The Storybook"}
-                </h1>
+                    <div>
+                        <p className="font-data text-mystic text-xs tracking-[0.3em] uppercase mb-1">
+                            Guest Demo
+                        </p>
+                        <h1 className="font-display text-3xl text-parchment">Try a Real Adventure</h1>
+                    </div>
+
+                    <RuneButton variant="ghost" onClick={() => navigate("/")}>
+                        Back home
+                    </RuneButton>
+
+                </header>
+
+                <div className="mb-6 px-4 py-3 rounded-lg bg-mystic/10 border border-mystic/25 text-parchmentDim text-sm font-body">
+                    This is the real story engine, no account needed. Nothing here is saved --
+                    history, progress, and reflections only stick around once you{" "}
+                    <button onClick={() => navigate("/auth?mode=register")} className="text-mystic underline decoration-dotted">
+                        create a free account
+                    </button>.
+                </div>
+
+                {error && <div className="mb-4"><ErrorNotice message={error} /></div>}
 
                 {stage === "setup" && (
+
                     <ParchmentCard>
-                        <h2 className="font-display text-lg text-ember mb-4">Open a new chapter</h2>
-                        <form onSubmit={handleStart} className="flex flex-col gap-4">
 
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-parchmentDim font-semibold">Where does it begin?</span>
+                        <div className="flex flex-col gap-5">
+
+                            <div>
+                                <p className="text-parchmentDim text-sm font-semibold mb-2">
+                                    What's your name?
+                                </p>
                                 <input
-                                    value={location}
-                                    onChange={event => setLocation(event.target.value)}
-                                    className="bg-night/60 border border-parchmentDim/30 rounded-lg px-3 py-2 text-parchment focus:border-ember outline-none"
-                                    required
+                                    value={childName}
+                                    onChange={event => setChildName(event.target.value)}
+                                    placeholder="e.g. Maya"
+                                    maxLength={40}
+                                    className="w-full max-w-xs px-4 py-2 rounded-lg bg-night/60 border border-parchmentDim/25
+                                        text-parchment font-body text-sm placeholder:text-parchmentDim/40 focus:border-ember outline-none"
                                 />
-                            </label>
+                            </div>
 
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-parchmentDim font-semibold">
-                                    What would you like {child?.name ?? "your child"} to work on?
-                                </span>
-                                <span className="text-xs text-parchmentDim/70">
-                                    Write it in your own words -- Ember will turn it into a story, never a lecture.
-                                </span>
-                                <textarea
-                                    value={learningGoal}
-                                    onChange={event => setLearningGoal(event.target.value)}
-                                    placeholder="e.g. My son struggles with losing. Or: I want her to understand honesty."
-                                    rows={3}
-                                    className="bg-night/60 border border-parchmentDim/30 rounded-lg px-3 py-2 text-parchment placeholder:text-parchmentDim/40 focus:border-ember outline-none resize-none"
-                                    required
-                                />
-                            </label>
+                            <div>
+                                <p className="text-parchmentDim text-sm font-semibold mb-2">Pick a skill</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {SKILLS.map(s => (
+                                        <button
+                                            key={s.key}
+                                            onClick={() => setSkill(s.key)}
+                                            className={`px-4 py-2 rounded-full border text-sm font-body ${
+                                                skill === s.key
+                                                    ? "border-ember bg-ember/15 text-parchment"
+                                                    : "border-parchmentDim/25 text-parchmentDim"
+                                            }`}
+                                        >
+                                            {s.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-                            {error && <ErrorNotice message={error} />}
+                            <div>
+                                <p className="text-parchmentDim text-sm font-semibold mb-2">Pick a world</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {LOCATIONS.map(loc => (
+                                        <button
+                                            key={loc}
+                                            onClick={() => setLocation(loc)}
+                                            className={`px-4 py-2 rounded-full border text-sm font-body ${
+                                                location === loc
+                                                    ? "border-mystic bg-mystic/15 text-parchment"
+                                                    : "border-parchmentDim/25 text-parchmentDim"
+                                            }`}
+                                        >
+                                            {loc}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-                            <RuneButton type="submit">Begin the story</RuneButton>
+                            <RuneButton
+                                onClick={handleStart}
+                                disabled={childName.trim().length === 0}
+                                className="self-start"
+                            >
+                                Begin the story
+                            </RuneButton>
 
-                        </form>
+                            {childName.trim().length === 0 && (
+                                <p className="text-parchmentDim/50 text-xs font-body -mt-3">
+                                    Enter your name above to begin — you'll be the hero of the story.
+                                </p>
+                            )}
+
+                        </div>
+
                     </ParchmentCard>
+
                 )}
 
-                {stage === "opening-loading" && (
+                {stage === "loading" && (
                     <LoadingJourney
                         messages={[
-                            `Ember is dreaming up ${child?.name ?? "the"}'s story...`,
+                            "Dreaming up a story just for you...",
                             "Building a magical world...",
                             "Meeting new friends...",
-                            "Choosing today's challenge...",
-                            "Drawing the map...",
                             "Almost ready..."
                         ]}
                     />
-                )}
-
-                {stage === "objective-reveal" && objective && (
-                    <ParchmentCard className="animate-popIn text-center">
-                        <p className="text-xs uppercase tracking-widest text-mystic mb-3">
-                            Ember has an idea
-                        </p>
-                        <p className="text-parchment mb-4">{objective.rationale}</p>
-                        <div className="flex flex-wrap justify-center gap-2 mb-6">
-                            {objective.skillFocus.map(skill => (
-                                <span
-                                    key={skill}
-                                    className="text-xs px-3 py-1 rounded-full bg-ember/15 text-ember capitalize"
-                                >
-                                    {skill}
-                                </span>
-                            ))}
-                        </div>
-                        <RuneButton onClick={() => setStage("playing")}>
-                            Begin the Story
-                        </RuneButton>
-                        <p className="text-xs text-parchmentDim/60 mt-4">
-                            Only you can see this -- {child?.name ?? "your child"} just sees the adventure.
-                        </p>
-                    </ParchmentCard>
                 )}
 
                 {(stage === "playing" || stage === "resolving") && (
@@ -319,7 +287,6 @@ export function AdventurePage() {
                             <div className="absolute inset-0 bg-gradient-to-br from-ember/5 to-mystic/5 pointer-events-none" />
 
                             <div
-                                ref={storyContainerRef}
                                 className="relative space-y-5"
                                 role="article"
                                 aria-label="Story chapter"
@@ -450,12 +417,11 @@ export function AdventurePage() {
                             </p>
                         )}
 
-                        {error && <ErrorNotice message={error} />}
-
                     </div>
                 )}
 
                 {stage === "ended" && (
+
                     <div className="flex flex-col gap-6 animate-popIn">
 
                         {/* ─── Full chapter text ─── */}
@@ -483,54 +449,34 @@ export function AdventurePage() {
                                 &mdash; The End &mdash;
                             </p>
 
+                            {reflection && (
+                                <div className="mt-6 pt-4 border-t border-parchmentDim/20 relative">
+                                    <p className="text-mystic text-sm font-semibold mb-1">{reflection.question}</p>
+                                    <p className="text-parchmentDim text-sm">{reflection.encouragement}</p>
+                                </div>
+                            )}
+
                             <NarrationControls text={storyLog.join("\n\n")} />
+
                         </ParchmentCard>
 
-                        {reflection && (
-                            <ParchmentCard>
-                                <p className="text-xs uppercase tracking-widest text-ember mb-2">
-                                    A moment to think
-                                </p>
-                                <p className="text-parchment font-semibold mb-3">{reflection.question}</p>
-                                <ul className="text-sm text-parchmentDim flex flex-col gap-1 mb-4">
-                                    {reflection.followUpQuestions.map((question, index) => (
-                                        <li key={index}>&bull; {question}</li>
-                                    ))}
-                                </ul>
-                                <p className="text-mystic text-sm italic">{reflection.encouragement}</p>
-                            </ParchmentCard>
-                        )}
+                        <div className="flex flex-wrap gap-3 justify-center">
 
-                        {analytics && (
-                            <ParchmentCard>
-                                <p className="text-xs uppercase tracking-widest text-mystic mb-2">
-                                    What Ember noticed
-                                </p>
-                                <p className="text-parchment text-sm">{analytics.summary}</p>
-                            </ParchmentCard>
-                        )}
+                            <RuneButton onClick={restart}>Try another story</RuneButton>
 
-                        <RuneButton onClick={handlePlayAgain} className="self-center">
-                            Start a new chapter &rarr;
-                        </RuneButton>
+                            <RuneButton variant="secondary" onClick={() => navigate("/auth?mode=register")}>
+                                Save progress — create a free account
+                            </RuneButton>
+
+                        </div>
 
                     </div>
+
                 )}
 
             </div>
 
-            <GuideCharacter
-                guideKey={
-                    stage === "setup" ? "adventure-start" :
-                    stage === "ended" ? "adventure-reflection" :
-                    "adventure-situation"
-                }
-                override={
-                    stage === "ended" && reflection
-                        ? { mood: "thinking", text: reflection.question }
-                        : undefined
-                }
-            />
+            <GuideCharacter guideKey="landing" />
 
         </div>
     );

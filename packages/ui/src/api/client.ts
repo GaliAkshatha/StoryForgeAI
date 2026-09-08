@@ -75,6 +75,7 @@ export interface StartAdventureResult {
     choices: Choice[];
     isEnding: boolean;
     emotionalTone: string;
+    storyLog: string[];
     objective: LearningObjective;
 }
 
@@ -84,6 +85,7 @@ export interface AdventureTurnResult {
     isEnding: boolean;
     emotionalTone: string;
     learningSignals: string[];
+    storyLog: string[];
     // v3: only populated on the turn that concludes a chapter --
     // Reflection/Analytics no longer run every turn.
     reflection?: Reflection;
@@ -162,6 +164,26 @@ export const api = {
     },
 
     // BYOK -- these call the already-existing /settings/api-key
+    // Guest demo -- no token, no account. Backend enforces this is
+    // fully in-memory and isolated from any real persisted data.
+    startDemo(skill: string, location: string, childName: string) {
+
+        return request<{
+            worldId: string; sessionId: string; narrative: string;
+            choices: Choice[]; isEnding: boolean; emotionalTone: string;
+        }>("/demo/start", { method: "POST", body: JSON.stringify({ skill, location, childName }) });
+
+    },
+
+    playDemoTurn(worldId: string, sessionId: string, selectedChoiceId: string, childName: string) {
+
+        return request<{
+            narrative: string; choices: Choice[]; isEnding: boolean; emotionalTone: string;
+            reflection?: Reflection;
+        }>("/demo/turn", { method: "POST", body: JSON.stringify({ worldId, sessionId, selectedChoiceId, childName }) });
+
+    },
+
     // routes (built and tested separately from this frontend work).
     // No backend change here, just the frontend finally using them.
     getApiKeyStatus(token: string) {

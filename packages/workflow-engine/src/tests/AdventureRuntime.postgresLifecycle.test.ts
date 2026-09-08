@@ -103,7 +103,7 @@ class FakeLLMClient implements LLMClient {
         if (request.prompt.includes("\"premise\": \"\"")) {
             text = METADATA_RESPONSE;
         }
-        else if (request.prompt.includes("You are a renderer")) {
+        else if (request.prompt.includes("SECOND PERSON")) {
             text = "The story continues in a new direction.";
         }
         else if (request.prompt.includes("Reflection Agent")) {

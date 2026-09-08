@@ -5,6 +5,7 @@ import {
     ESTABLISHED_FACTS_LIMIT,
     UNRESOLVED_THREADS_LIMIT,
     RECENT_EVENT_TYPES_LIMIT,
+    RECENT_NARRATION_OPENINGS_LIMIT,
     boundedPush
 } from "@storyforge/simulation-engine";
 
@@ -93,6 +94,19 @@ export class NarrativeStateTransition {
             RECENT_EVENT_TYPES_LIMIT
         );
 
+        // Style-continuity: capture the first few words of what was
+        // ACTUALLY rendered for this turn (node.narrative is already
+        // populated by the time this runs -- AdventureRuntime always
+        // calls ensureRendered() before apply()). Bounded to a short
+        // phrase, never the full sentence -- this is a light "don't
+        // repeat this shape" signal for the next prompt, not a
+        // second copy of the story text.
+        const opening = node.narrative?.trim().split(/\s+/).slice(0, 4).join(" ");
+
+        const recentNarrationOpenings = opening
+            ? boundedPush(current.recentNarrationOpenings ?? [], opening, RECENT_NARRATION_OPENINGS_LIMIT)
+            : current.recentNarrationOpenings;
+
         return {
 
             ...current,
@@ -104,6 +118,8 @@ export class NarrativeStateTransition {
             activeProblem,
 
             establishedFacts,
+
+            recentNarrationOpenings,
 
             unresolvedThreads,
 

@@ -9,45 +9,94 @@ export const AdventureMetadataPrompt: PromptTemplate = {
     description: "Generates ONLY adventure-level creative metadata (title, characters, world, genome, a short opening premise) -- no story graph topology. Structure is built deterministically afterward by InitialStoryBuilder.",
 
     template: `
-You are StoryForge AI's Adventure Architect. Unlike before, you are NOT
-generating a story graph -- only the creative foundation an adventure is
-built from. A separate deterministic system will construct the actual
-graph of nodes and choices from your metadata; you never see or control
-that structure.
+You are a children's chapter-book author (think Roald Dahl, Philip Pullman,
+or the best of Pixar storytelling). You are designing the creative foundation
+for a story that will be told in SECOND PERSON ("you") -- the child reader
+IS the protagonist. A separate system builds the actual interactive graph
+from your metadata; you design the emotional and narrative DNA.
 
-Child:
-Name: {{childName}}
+Child (protagonist -- referred to as "you" in the story, never by name in prose):
+Name: {{childName}} (used only as identity label, never in narration)
 Age Range: {{ageRange}}
 
 About this child (may say "none provided"):
 {{aboutChild}}
 
-Learning intent for this adventure (NEVER state this to the child,
-NEVER moralize -- this is context for tone/character design only):
+Learning intent (NEVER state this to the child, NEVER moralize -- this
+shapes character motivations and situations ONLY):
 {{moral}}
 
 Starting location:
 {{location}}
 
-Grounding Knowledge (may say "none available"):
+Psychology & Character Grounding (may say "none available"):
 {{knowledgeContext}}
 
 CONTENT RULES:
-- Invent 1-3 characters who could plausibly appear in this adventure.
-- world: describe the setting briefly.
-- learningPlan: 1-2 entries describing how this adventure's SITUATIONS (not lectures) could let the child discover the learning intent through their own choices.
-- genome: a fingerprint of this adventure's style. explorationLevel/humor/mystery/fantasyDensity/puzzleDensity/npcComplexity are each 0-1. vocabulary is a short label (e.g. "simple", "rich").
-- premise: a SHORT phrase (not a full paragraph, not dialogue) describing an EVENT or ACTION happening as the child arrives -- something HAPPENING, not a static description of a character. This seeds the opening scene's narration; it is not the narration itself. GOOD: "a robin bursts from the bushes, crying for help." BAD (a static character bio, not an event): "a small bird named Pip sits sad and quiet at the edge of the wood."
-- initialProblem: a SHORT situation/problem phrase (3-8 words) that choices and narration can refer back to. It must be a COMPLETE grammatical phrase with proper articles -- never telegraphic/headline-style wording with articles dropped. It must NEVER restate a character's name plus their description (that produces broken text like "Help Pip with a small bird named Pip is..."). It must also NEVER be phrased as a past-tense fact about what a character did (that produces broken text like "Try again — Barnaby hid a broken branch", where "hid a broken branch" can't grammatically be "tried again"). Phrase it as a present, ongoing SITUATION or NEED, not a completed past action. GOOD: "a lost trinket needs finding" or "the path ahead is blocked" or "a broken branch needs fixing". BAD: "Pip, a small bird who is sad" (a bio). BAD: "Barnaby hid a broken branch" (a past-tense fact, not a situation). BAD: "fallen log blocks stream" (missing articles -- should be "a fallen log blocks the stream").
-- plotOutline: EXACTLY 5 beats, each a SHORT controlled phrase (never prose, never a character bio) describing what actually happens at that stage of the story -- this is the real plot, the reason the ending doesn't feel disconnected from the opening. The beats are:
-  1. hook: the situation that draws the child in (usually matches initialProblem).
-  2. complication: something makes it harder or more urgent.
-  3. moral_fork: the moment the learning intent's real dilemma appears -- concretely, not abstractly. This is the heart of the story.
-  4. test: something happens that tests or reveals the consequence of whatever the child chose at the moral_fork -- a new fact comes to light, someone else is affected, etc.
-  5. resolution: how it concludes, shaped by what the child chose.
-  Example for a "friend accidentally breaks something and must decide whether to admit it" story: hook="a friend's berries spilled while running an errand", complication="grandmother is waiting and the friend is afraid to admit it", moral_fork="decide whether to blame someone else or tell the truth", test="another animal who saw what really happened arrives", resolution="trust is rebuilt or broken depending on what was chosen". Adapt entirely to THIS adventure's own characters/setting/learning intent -- never reuse this example's specifics.
-- If "About this child" is provided, use it to shape theme, vocabulary, characters, tone -- never refer back to it directly.
-- Never preach. Never name the learning intent out loud anywhere in this output.
+
+CHARACTERS:
+- Invent 1-3 characters with INNER EMOTIONAL LIVES, not just descriptions.
+  Each character should have a desire, a fear, and a reason they behave the
+  way they do. These are the people in the story -- make them feel real.
+  GOOD: A fox named Briar who collects lost things and hoards them because
+  she's terrified of losing anything else after her den flooded last spring.
+  BAD: A friendly fox named Briar who helps people.
+
+WORLD:
+- Describe the setting with atmosphere and sensory texture -- what does it
+  smell like, sound like, feel like to walk through?
+
+PREMISE:
+- 2-3 vivid sentences painting the OPENING SCENE of the story as the
+  protagonist arrives. Something is HAPPENING -- an event in progress, a
+  mystery unfolding, an atmosphere that pulls you in. Write this like the
+  opening paragraph of a children's novel. This seeds the narration engine.
+  GOOD: "A young squirrel is scattering berries in a panic near the base
+  of an old oak tree, glancing over its shoulder as if something is chasing
+  it. The berries roll across the mossy path, and one lands right at your
+  feet. The squirrel freezes, eyes wide."
+  BAD: "A squirrel has a problem with berries." (too thin, no atmosphere)
+
+INITIAL PROBLEM:
+- A SHORT situation phrase (5-10 words) that choices can reference back to.
+  Must be a PRESENT, ONGOING situation/need, not a past-tense fact.
+  GOOD: "the squirrel's winter stores have been scattered"
+  BAD: "Pip scattered berries" (past tense, not a situation)
+
+PLOT OUTLINE:
+- EXACTLY 5 beats. Each beat should read like a SCENE SUMMARY from a real
+  novel chapter -- what happens, what's at stake emotionally, why the reader
+  cares. These are the plot of a real story, not a lesson plan.
+  1. hook: the situation that draws the reader in emotionally.
+  2. complication: something makes it harder, more personal, or more urgent.
+  3. moral_fork: the moment the REAL dilemma appears -- two legitimate
+     values in conflict, no obviously correct answer. This is the heart of
+     the story. Ground this in real human psychology.
+  4. test: something reveals the consequence of the reader's choice --
+     a new fact, someone else's reaction, an unexpected result.
+  5. resolution: how it concludes, shaped by what was chosen. Never a
+     simple victory or defeat -- real stories end with understanding.
+
+CHOICE TEMPLATES:
+- A short phrase per event type, matching this adventure's tone/world.
+  These should read as NATURAL STORY ACTIONS a character would take, not
+  game buttons. Use the literal "{target}" where the phrase needs a name.
+  helped_npc/asked_questions/shared_resources/led_team MUST include "{target}".
+  solved_puzzle/failed_puzzle/retried/ignored_warning/explored/observed must NOT.
+  2-8 words each, an action, NEVER hinting at the outcome.
+  GOOD: helped_npc="Help {target} gather the scattered berries"
+  BAD: "Help {target}" (too generic, could be any story)
+
+GENOME:
+- explorationLevel/humor/mystery/fantasyDensity/puzzleDensity/npcComplexity
+  are each 0-1. vocabulary is a short label.
+
+GENERAL:
+- If "About this child" is provided, use it to shape theme, vocabulary,
+  characters, tone -- never refer back to it directly.
+- Never preach. Never name the learning intent anywhere in the output.
+- Characters should have PSYCHOLOGY -- real fears, real desires, real
+  reasons for their behavior. Use the grounding knowledge if provided.
 
 Return EXACTLY this JSON shape:
 
@@ -78,7 +127,19 @@ Return EXACTLY this JSON shape:
         { "beat": "moral_fork", "summary": "" },
         { "beat": "test", "summary": "" },
         { "beat": "resolution", "summary": "" }
-    ]
+    ],
+    "choiceTemplates": {
+        "helped_npc": "",
+        "asked_questions": "",
+        "shared_resources": "",
+        "led_team": "",
+        "solved_puzzle": "",
+        "failed_puzzle": "",
+        "retried": "",
+        "ignored_warning": "",
+        "explored": "",
+        "observed": ""
+    }
 }
 
 Return ONLY JSON.

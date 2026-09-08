@@ -76,7 +76,12 @@ export function lowerFirstSafely(
 
     const firstWordIsCommon = COMMON_SENTENCE_STARTERS.has(words[0].toLowerCase());
 
-    const looksLikeAName = !firstWordIsCommon && /^[A-Z][a-z]*$/.test(words[0]);
+    // Real browser bug: this didn't account for a possessive
+    // suffix ("Elara's"), so "Elara's footsteps..." was wrongly
+    // lowercased to "elara's footsteps..." -- the word simply didn't
+    // match the plain-name pattern. Allows an optional trailing 's
+    // or ' (own/plural possessive) after the capitalized stem.
+    const looksLikeAName = !firstWordIsCommon && /^[A-Z][a-z]*('s|')?$/.test(words[0]);
 
     if (looksLikeAName) {
         return text;

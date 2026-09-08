@@ -1,28 +1,47 @@
 import { TextRenderer, RenderRequest, RenderResult } from "./TextRenderer";
 
-// Phase L: a small deterministic renderer for obvious events --
-// exists to eliminate LLM calls for events simple enough that a
-// template is genuinely just as good, not to replace narration
-// generally. Deliberately tiny: one line per event type.
+// Novel-immersion fallback renderer: second-person "you" voice,
+// 3–4 atmospheric sentences per template. Used when Gemini is
+// unavailable (503/429) or for trivially simple events that don't
+// need LLM prose.
 export class TemplateTextRenderer implements TextRenderer {
 
     private readonly templates: Record<string, (req: RenderRequest) => string> = {
 
-        explored: req => `${req.actorName} explores a new part of ${req.location}, curious about what's there.`,
+        explored: req =>
+            `You step carefully into an uncharted corner of ${req.location}. The air shifts — ` +
+            `cooler here, tinged with something earthy and old. A gentle rustle draws your ` +
+            `attention to unexpected clues half-hidden just ahead, waiting to be found.`,
 
-        observed: req => `${req.actorName} pays close attention to the details around ${req.location}.`,
+        observed: req =>
+            `You pause and let the scene settle around you, watching with sharp attention. ` +
+            `Every small detail in ${req.location} seems to whisper a piece of the larger ` +
+            `story — the pattern in the bark, the way light falls across the ground. ` +
+            `Something here matters, if you look closely enough.`,
 
         asked_questions: req =>
-            `${req.actorName} asks ${req.targetName ?? "someone nearby"} a few thoughtful questions.`,
+            `You lean in and ask ${req.targetName ?? "your companion"} what really happened. ` +
+            `${req.targetName ? `${req.targetName} pauses, weighing whether to trust you with the truth, then begins to speak.` : "An attentive conversation unfolds, revealing something no one else had noticed."}`,
 
         shared_resources: req =>
-            `${req.actorName} shares something useful with ${req.targetName ?? "a new friend"}.`,
+            `You offer something useful to ${req.targetName ?? "your companion"} without a ` +
+            `second thought. The look on their face shifts — surprise first, then something ` +
+            `warmer and deeper. Trust, maybe. Or the quiet relief of knowing they're not alone.`,
 
-        ignored_warning: req => `${req.actorName} presses on despite a clear warning sign at ${req.location}.`,
+        ignored_warning: req =>
+            `You press on past the cautionary signs at ${req.location}, pulse quickening. ` +
+            `The path ahead grows steeper, the shadows longer. Whatever lies ahead, you've ` +
+            `chosen to face it rather than turn back. The stakes just got higher.`,
 
-        failed_puzzle: req => `${req.actorName} tries, but the puzzle doesn't budge -- not yet, anyway.`,
+        failed_puzzle: req =>
+            `You test your solution, certain this time it will work — but the pieces don't ` +
+            `align, not quite. Frustration flickers through you, then something else: ` +
+            `curiosity. The failure itself has shown you something about how the puzzle works.`,
 
-        retried: req => `${req.actorName} takes a breath and tries again.`
+        retried: req =>
+            `You take a steady breath, close your eyes for a moment, and let the earlier ` +
+            `mistake replay in your mind. This time you see what you missed before. With ` +
+            `fresh eyes and a clearer plan, you give it another determined try.`
 
     };
 
@@ -32,11 +51,11 @@ export class TemplateTextRenderer implements TextRenderer {
 
         // Phase 2B (Section L): narrativeSeed is no longer a generic
         // label -- since Phase 2A, SemanticEventBuilder derives it
-        // from the contextual `action` field (e.g. "shares the
-        // lantern with Squeak" instead of just "shares something").
-        // Prefer it over the fixed per-type templates below whenever
-        // it's substantive enough to be worth using; the fixed
-        // templates remain as the fallback for thin/missing seeds.
+        // from the contextual `action` field (e.g. "reach out to help
+        // Pip" instead of just "helps someone"). Prefer it over the
+        // fixed per-type templates below whenever it's substantive
+        // enough to be worth using; the fixed templates remain as the
+        // fallback for thin/missing seeds.
         const seed = request.narrativeSeed?.trim();
 
         if (request.eventType === "adventure_opening" && seed) {
@@ -45,40 +64,23 @@ export class TemplateTextRenderer implements TextRenderer {
 
             // If the premise text doesn't already mention the other
             // character's name (simple substring check, not NLP),
-            // add one short clause introducing them -- otherwise the
-            // narration can end up saying "a small squirrel" while
-            // the choices below correctly say "Pip", since choices
-            // are built deterministically from the character's real
-            // name and narration here otherwise has no guarantee of
-            // using it.
+            // add one short clause introducing them.
             const targetIntro =
                 request.targetName && !situation.includes(request.targetName)
-                    ? ` ${request.targetName} is there too.`
+                    ? ` ${request.targetName} is already here, watching you with cautious curiosity.`
                     : "";
 
             const openers = [
-                `${request.actorName} arrives at ${request.location}.`,
-                `Our story begins as ${request.actorName} steps into ${request.location}.`,
-                `${request.actorName}'s adventure starts here, at ${request.location}.`
+                `You arrive at ${request.location}, the air humming with quiet energy.`,
+                `The story begins the moment you step into ${request.location}, heart beating a little faster.`,
+                `Your adventure starts here, at ${request.location}, where everything feels just slightly different.`
             ];
 
-            // Real browser bug: the opener jumped straight from
-            // arrival into the raw problem with zero breathing room
-            // ("Ak steps into the Whispering Wood. A squirrel
-            // scatters berries..."), reading as abrupt and
-            // mechanical. The actual reference tone for this project
-            // ("A cool breeze rustles through the tall trees. Tiny
-            // glowing butterflies dance around your feet. Far ahead,
-            // a little squirrel...") gives one short sensory beat
-            // BEFORE the situation lands. Generic and location-
-            // agnostic on purpose -- this is a template fallback, not
-            // scene-specific prose; Gemini's own prompt (already
-            // instructed to set the scene) handles the richer case.
             const atmosphereBeats = [
-                "A quiet breeze drifts by.",
-                "Somewhere nearby, birds are singing.",
-                "The air feels calm and a little magical.",
-                "Everything is still, just for a moment."
+                "A cool breeze brushes your skin, carrying the scent of damp earth and wild sage.",
+                "Somewhere nearby, birds are singing a melody you've never heard before.",
+                "The air feels calm and a little magical, as if the place itself is watching.",
+                "Everything is still, just for a moment — like the world is holding its breath."
             ];
 
             const atmosphere = atmosphereBeats[request.location.length % atmosphereBeats.length];
@@ -89,20 +91,27 @@ export class TemplateTextRenderer implements TextRenderer {
 
         }
 
+        const consequenceNote = request.consequenceContext ? ` ${request.consequenceContext}.` : "";
+
         if (seed && seed.length > 15) {
 
-            return { text: `${request.actorName} ${seed}.`, rendererUsed: "template" };
+            return { text: `You ${seed}.${consequenceNote}`, rendererUsed: "template" };
 
         }
 
         const template = this.templates[request.eventType];
 
-        const text = template
+        const baseText = template
             ? template(request)
-            : `${request.actorName} ${request.narrativeSeed}.`;
+            : `You ${request.narrativeSeed}.`;
+
+        const text = consequenceNote && !baseText.includes(request.consequenceContext ?? "")
+            ? `${baseText}${consequenceNote}`
+            : baseText;
 
         return { text, rendererUsed: "template" };
 
     }
 
 }
+

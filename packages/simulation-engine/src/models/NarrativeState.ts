@@ -119,6 +119,41 @@ export interface NarrativeState {
 
     currentBeatIndex?: number;
 
+    // Choice-variety pass: per-adventure choice phrase templates
+    // (from Adventure.choiceTemplates), one per event type, so choice
+    // buttons match this adventure's own tone instead of reusing one
+    // fixed hardcoded set across every adventure ever played.
+    // Optional and partial -- ChoiceTextBuilder falls back to its own
+    // hardcoded default for any type missing here.
+    choiceTemplates?: Partial<Record<AdventureEventType, string>>;
+
+    // Adventure-genome fields (from Adventure.genome), threaded
+    // through so per-turn narration can actually reflect the tone
+    // Gemini designed for THIS adventure -- previously generated
+    // once at adventure creation and immediately discarded, with
+    // every turn's narration hardcoded to "fantasy_adventure"
+    // regardless of the adventure's real theme or intended
+    // humor/mystery balance. Individual scalars, not the full
+    // genome object, to avoid simulation-engine depending on
+    // story-graph's StoryGenome type (circular dependency).
+    theme?: string;
+
+    humor?: number;
+
+    mystery?: number;
+
+    vocabulary?: string;
+
+    // Style-continuity pass: the opening few words of the last few
+    // rendered turns (not full text -- bounded, small), so the NEXT
+    // turn's prompt can be told not to repeat the same sentence
+    // shape. Previously each Gemini call was entirely stateless about
+    // HOW prior turns were phrased (only facts were tracked), so
+    // turns could read mechanically repetitive ("Ak looks around
+    // and... / Ak notices... / Ak turns to...") even when every
+    // individual sentence was independently well-formed.
+    recentNarrationOpenings?: string[];
+
 }
 
 export const ESTABLISHED_FACTS_LIMIT = 8;
@@ -126,6 +161,8 @@ export const ESTABLISHED_FACTS_LIMIT = 8;
 export const UNRESOLVED_THREADS_LIMIT = 5;
 
 export const RECENT_EVENT_TYPES_LIMIT = 5;
+
+export const RECENT_NARRATION_OPENINGS_LIMIT = 3;
 
 export function boundedPush<T>(
     list: T[],

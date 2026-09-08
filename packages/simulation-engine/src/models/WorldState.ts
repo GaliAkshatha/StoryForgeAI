@@ -122,6 +122,11 @@ export interface WorldState {
     // it.
     narrativeState?: NarrativeState;
 
+    // Novel immersion: accumulated story paragraphs in order, one
+    // entry per rendered turn. The frontend renders the full log as
+    // a scrolling chapter book instead of showing only the latest.
+    storyLog?: string[];
+
     updatedAt: string;
 
 }

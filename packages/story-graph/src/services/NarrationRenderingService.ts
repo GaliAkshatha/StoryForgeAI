@@ -40,10 +40,9 @@ export class NarrationRenderingService {
     ) {}
 
     // Hotfix: narrativeSeed is an ACTION phrase for most nodes
-    // ("helps Squeak with...") but a SCENE DESCRIPTION for the root
-    // (the adventure's premise). Prefixing a description with the
-    // actor's name produces broken grammar ("Ak A small squirrel
-    // named Squeaky is..."). Only action-phrase seeds get the prefix.
+    // ("reach out to help Squeak with...") but a SCENE DESCRIPTION for the root
+    // (the adventure's premise). The opening gets a scene-setting
+    // prefix; action-phrase seeds get "You" prepended.
     private safeFallbackText(
         request: RenderRequest
     ): string {
@@ -52,10 +51,10 @@ export class NarrationRenderingService {
 
         if (request.eventType === "adventure_opening") {
             const situation = seed.endsWith(".") ? seed : `${seed}.`;
-            return `${request.actorName} arrives at ${request.location}. A quiet breeze drifts by. ${situation}`;
+            return `You arrive at ${request.location}. The air feels calm and a little magical. ${situation}`;
         }
 
-        return `${request.actorName} ${seed}.`;
+        return `You ${seed}.`;
 
     }
 

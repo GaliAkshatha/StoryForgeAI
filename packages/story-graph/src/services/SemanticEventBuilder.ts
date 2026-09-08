@@ -1,7 +1,7 @@
 import { NarrativeState } from "@storyforge/simulation-engine";
 import { CandidateEvent } from "../models/CandidateEvent";
 import { SemanticEvent } from "../models/SemanticEvent";
-import { safeDashFragment, shortenSafely, stripTrailingPunctuation } from "./TextFragmentUtils";
+import { safeDashFragment, shortenSafely, stripTrailingPunctuation, lowerFirstSafely } from "./TextFragmentUtils";
 
 export interface SemanticEventBuildInput {
 
@@ -59,7 +59,10 @@ export class SemanticEventBuilder {
 
         const { candidate, narrativeState } = input;
 
-        const content = this.buildContent(candidate, narrativeState, input.actorName);
+        const content = this.applyCallbackConsequence(
+            this.buildContent(candidate, narrativeState, input.actorName),
+            narrativeState
+        );
 
         return {
 
@@ -67,7 +70,21 @@ export class SemanticEventBuilder {
 
             audience: { ageRange: input.ageRange },
 
-            style: { tone: "fantasy_adventure", maxSentences: 3 },
+            style: {
+
+                tone: narrativeState.theme ?? "fantasy_adventure",
+
+                maxSentences: this.maxSentencesForBeat(narrativeState),
+
+                humor: narrativeState.humor,
+
+                mystery: narrativeState.mystery,
+
+                vocabulary: narrativeState.vocabulary,
+
+                avoidOpenings: narrativeState.recentNarrationOpenings
+
+            },
 
             scene: { location: candidate.locationId ?? narrativeState.location },
 
@@ -94,6 +111,77 @@ export class SemanticEventBuilder {
             learning: candidate.learningTags[0] ? { skill: candidate.learningTags[0] } : undefined,
 
             personalizationHint: input.aboutChild
+
+        };
+
+    }
+
+    // Pacing pass: every turn used to get the same 3-sentence cap
+    // regardless of what was actually happening -- a quiet
+    // exploratory beat and the moment testing the consequence of the
+    // child's moral_fork choice read with identical length and
+    // rhythm. Small, explicit, reviewable -- same spirit as
+    // BEAT_ALIGNED_TYPES in EventScorer.
+    private static readonly SENTENCES_BY_BEAT: Record<string, number> = {
+
+        hook: 4,
+
+        complication: 4,
+
+        moral_fork: 5,
+
+        test: 5,
+
+        resolution: 4
+
+    };
+
+    private maxSentencesForBeat(
+        state: NarrativeState
+    ): number {
+
+        const beat = state.plotOutline?.[state.currentBeatIndex ?? 0]?.beat;
+
+        return beat ? SemanticEventBuilder.SENTENCES_BY_BEAT[beat] ?? 4 : 4;
+
+    }
+
+    // The pedagogical core of this pass: at the "test" beat, the
+    // plot outline PROMISES the story will reveal a consequence of
+    // what the child chose earlier -- but until now, nothing actually
+    // wired that promise to real content. This is the fix: reference
+    // the most recently established fact (which, given how beats
+    // advance, is what got established at/around the moral_fork
+    // turn) explicitly in the consequence text. It's the difference
+    // between "then something happened" and "then, because of what
+    // Ak did, something happened" -- the latter is what actually
+    // teaches that a choice mattered, not just narrates the next
+    // generic event. Deterministic: reuses an already-tracked field
+    // (establishedFacts), no new state, no LLM call.
+    private applyCallbackConsequence(
+        content: ContextualContent,
+        state: NarrativeState
+    ): ContextualContent {
+
+        const currentBeat = state.plotOutline?.[state.currentBeatIndex ?? 0]?.beat;
+
+        if (currentBeat !== "test") {
+            return content;
+        }
+
+        const priorFact = state.establishedFacts[state.establishedFacts.length - 1];
+
+        if (!priorFact) {
+            return content;
+        }
+
+        const callback = lowerFirstSafely(priorFact);
+
+        return {
+
+            ...content,
+
+            consequence: `Because ${callback}, ${content.consequence}`
 
         };
 
@@ -138,19 +226,19 @@ export class SemanticEventBuilder {
                 // and npc_present -- a target is always present here.
                 return problem ? {
 
-                    action: `helps ${target} — ${problem}`,
+                    action: `reach out to help ${target} — ${problem}`,
 
-                    consequence: `${target} is relieved -- ${actorName}'s help makes a real difference`,
+                    consequence: `${target}'s face floods with relief — your help makes a real difference`,
 
-                    factEstablished: `${actorName} helped ${target} with ${problem}`
+                    factEstablished: `helped ${target} — ${problem}`
 
                 } : {
 
-                    action: `helps ${target}`,
+                    action: `reach out to help ${target}`,
 
-                    consequence: `${target} is relieved -- ${actorName}'s help makes a real difference`,
+                    consequence: `${target}'s face floods with relief — your help makes a real difference`,
 
-                    factEstablished: `${actorName} helped ${target}`
+                    factEstablished: `helped ${target}`
 
                 };
 
@@ -158,11 +246,11 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `takes charge and leads ${target} — ${problem ?? "through a tricky moment"}`,
+                    action: `step forward and take charge, guiding ${target} — ${problem ?? "through a tricky moment"}`,
 
-                    consequence: `${target} follows ${actorName}'s lead with new confidence`,
+                    consequence: `${target} follows your lead with new confidence`,
 
-                    factEstablished: `${actorName} led ${target} through ${problem ?? "a difficult moment"}`
+                    factEstablished: `led ${target} — ${problem ?? "through a difficult moment"}`
 
                 };
 
@@ -170,11 +258,11 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `shares something useful with ${target}`,
+                    action: `share something useful with ${target}`,
 
-                    consequence: `${target} is grateful and trusts ${actorName} a little more`,
+                    consequence: `${target} looks grateful — a little more trust settles between you`,
 
-                    factEstablished: `${actorName} shared something with ${target}`
+                    factEstablished: `shared something with ${target}`
 
                 };
 
@@ -189,13 +277,13 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `asks ${target} — ${topic}`,
+                    action: `lean in and ask ${target} — ${topic}`,
 
                     consequence: establishesProblem
-                        ? `${target} explains what's wrong`
-                        : `${target} shares a new detail about it`,
+                        ? `${target} explains what's wrong, voice low and careful`
+                        : `${target} shares a new detail, something they hadn't mentioned before`,
 
-                    factEstablished: `${target} told ${actorName} about ${topic}`,
+                    factEstablished: `${target} told you about ${topic}`,
 
                     problemEstablished: establishesProblem ? topic : undefined
 
@@ -207,21 +295,21 @@ export class SemanticEventBuilder {
 
                 return problem ? {
 
-                    action: `figures out a way forward — ${problem}`,
+                    action: `think it through and find a way forward — ${problem}`,
 
-                    consequence: `things start to get better -- ${problem} is no longer in the way`,
+                    consequence: `things start to shift — ${problem} is no longer standing in the way`,
 
-                    factEstablished: `${actorName} solved it: ${problem}`,
+                    factEstablished: `solved it: ${problem}`,
 
                     problemResolved: true
 
                 } : {
 
-                    action: `figures out a way forward`,
+                    action: `think it through and find a way forward`,
 
-                    consequence: `things start to get better`,
+                    consequence: `things start to shift — the obstacle is clearing`,
 
-                    factEstablished: `${actorName} solved the problem`,
+                    factEstablished: `solved the problem`,
 
                     problemResolved: true
 
@@ -229,26 +317,19 @@ export class SemanticEventBuilder {
 
             case "failed_puzzle":
 
-                // Audit fix: this used to unconditionally append
-                // "-- but it doesn't quite work" onto problem!,
-                // producing "...spilled and -- but it doesn't quite
-                // work" when problem was a truncated fragment. Now
-                // has an explicit no-problem fallback, and the
-                // problem case builds one complete sentence rather
-                // than assuming the fragment slots in cleanly.
                 return problem ? {
 
-                    action: `tries to help with ${problem}, but it doesn't quite work`,
+                    action: `try to solve it — ${problem} — but it doesn't quite work`,
 
-                    consequence: `the problem remains, but now there's something to try again`,
+                    consequence: `the problem remains, but now you can see something to try again`,
 
-                    threadIntroduced: `an unfinished attempt at ${problem}`
+                    threadIntroduced: `an unfinished attempt — ${problem}`
 
                 } : {
 
-                    action: `gives it a try, but it doesn't quite work`,
+                    action: `give it a try, but it doesn't quite work`,
 
-                    consequence: `the problem remains, but now there's something to try again`,
+                    consequence: `the problem remains, but now you can see something to try again`,
 
                     threadIntroduced: `an unfinished attempt`
 
@@ -258,21 +339,16 @@ export class SemanticEventBuilder {
 
                 const priorAttemptRaw = state.unresolvedThreads
                     .find(t => t.startsWith("an unfinished attempt"))
-                    ?.replace("an unfinished attempt at ", "")
+                    ?.replace("an unfinished attempt — ", "")
                     .replace("an unfinished attempt", "");
 
-                // Audit fix: this used to append "and tries a
-                // different way" directly onto unclean thread text,
-                // which could itself end in a dangling connector,
-                // producing "...spilled and and tries...". Re-cleaned
-                // through the same safe utility before reuse.
                 const priorAttempt = priorAttemptRaw ? stripTrailingPunctuation(shortenSafely(priorAttemptRaw) ?? "") : "";
 
                 return {
 
                     action: priorAttempt.length > 0
-                        ? `remembers what went wrong and tries a different way with ${priorAttempt}`
-                        : `takes a breath and tries again`,
+                        ? `remember what went wrong and try a different way with ${priorAttempt}`
+                        : `take a breath and try again`,
 
                     consequence: "this time it goes differently",
 
@@ -286,7 +362,7 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `presses on despite the caution raised earlier`,
+                    action: `press on despite the caution raised earlier`,
 
                     consequence: `things become a little riskier at ${state.location}`,
 
@@ -298,17 +374,17 @@ export class SemanticEventBuilder {
 
                 return problem ? {
 
-                    action: `looks around for anything connected to ${problem}`,
+                    action: `look around — ${problem}`,
 
-                    consequence: `notices something that might matter`,
+                    consequence: `you notice something that might matter`,
 
-                    threadIntroduced: `a detail noticed while looking into ${problem}`
+                    threadIntroduced: `a detail noticed — ${problem}`
 
                 } : {
 
-                    action: `explores further at ${state.location}`,
+                    action: `explore further at ${state.location}`,
 
-                    consequence: `notices something worth being careful about`,
+                    consequence: `you notice something worth being careful about`,
 
                     threadIntroduced: `a caution noticed while exploring ${state.location}`
 
@@ -320,15 +396,15 @@ export class SemanticEventBuilder {
 
                 return problem ? {
 
-                    action: `looks closely, thinking about ${problem}`,
+                    action: `look closely — ${problem}`,
 
-                    consequence: `notices a detail that might matter later`
+                    consequence: `you notice a detail that might matter later`
 
                 } : {
 
                     action: candidate.narrativeSeed,
 
-                    consequence: `takes note of the details at ${state.location}`
+                    consequence: `you take note of the details at ${state.location}`
 
                 };
 

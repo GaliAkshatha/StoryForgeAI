@@ -51,7 +51,8 @@ import {
     BM25Index,
     HybridRetriever,
     KnowledgeBase,
-    DEFAULT_KNOWLEDGE_CONFIG
+    DEFAULT_KNOWLEDGE_CONFIG,
+    PSYCHOLOGY_CORPUS
 
 } from "@storyforge/knowledge-engine";
 
@@ -368,6 +369,18 @@ export class DependencyContainer {
         });
 
         this.knowledgeBase = new KnowledgeBase(hybridRetriever);
+
+        // Seed human-psychology corpus into the knowledge base at
+        // startup (in-memory, zero network cost). This grounds the
+        // adventure blueprint generator's character arcs and moral
+        // dilemmas in real emotional and behavioral patterns -- the
+        // difference between characters that feel like real people
+        // and flat, alien NPCs. Fire-and-forget: if seeding fails
+        // (e.g. embedding client unavailable), adventures still work,
+        // they just get less psychologically grounded narration.
+        this.knowledgeBase.addKnowledge(PSYCHOLOGY_CORPUS).catch(err =>
+            console.warn("[KnowledgeBase] Psychology corpus seeding failed (non-fatal):", err)
+        );
 
         // ------------------------------------------------------
         // AI Agents

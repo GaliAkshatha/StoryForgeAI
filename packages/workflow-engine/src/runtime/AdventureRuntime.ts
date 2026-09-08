@@ -56,9 +56,9 @@ export class AdventureRuntime {
         const knowledgeContext =
             await this.container.knowledgeBase.queryAsContext(
 
-                `${input.location} ${input.moral}`,
+                `${input.location} ${input.moral} human emotions conflict resolution`,
 
-                { topK: 5, domain: input.domain }
+                { topK: 6, domain: "psychology" }
 
             );
 
@@ -144,11 +144,17 @@ export class AdventureRuntime {
 
                 text: choice.text
 
-            }))
+            })),
+
+            // Novel immersion: initialize the story log with the
+            // opening paragraph.
+            storyLog: [rootNode.narrative]
 
         };
 
         await this.container.worldStateStore.create(worldState);
+
+        const storyLog = worldState.storyLog!;
 
         return {
 
@@ -162,7 +168,10 @@ export class AdventureRuntime {
 
             isEnding: rootNode.isEnding,
 
-            emotionalTone: this.dominantEmotion(rootNode)
+            emotionalTone: this.dominantEmotion(rootNode),
+
+
+            storyLog
 
         };
 
@@ -296,7 +305,11 @@ export class AdventureRuntime {
 
                 text: choice.text
 
-            }))
+            })),
+
+            // Novel immersion: append new paragraph to the
+            // accumulated story log.
+            storyLog: [...(worldState.storyLog ?? []), nextNode.narrative]
 
         };
 
@@ -743,6 +756,9 @@ export class AdventureRuntime {
             },
 
             learningSignals: nextNode.learningSignals,
+
+
+            storyLog: updatedWorldState.storyLog ?? [],
 
             reflection,
 

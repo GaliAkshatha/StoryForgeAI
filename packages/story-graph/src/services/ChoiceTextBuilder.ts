@@ -2,26 +2,28 @@ import { AdventureEventType } from "@storyforge/shared";
 import { NarrativeState } from "@storyforge/simulation-engine";
 import { CandidateEvent } from "../models/CandidateEvent";
 
-// Phase 2B (Section C-H): replaces CHOICE_TEXT's eventType-only
-// lookup with wording contextualized by structural fields already
-// available at expansion time (target, location) -- deliberately
-// template-based rather than an NLP transform, per the explicit "do
-// not build a fragile general English NLP engine" instruction.
-// Presentation-only: never re-checks feasibility, never leaks a
-// consequence, never touches rendering.
+// Choice-variety pass: the ACTUAL fix for choices feeling "lame and
+// repetitive" (a real user reported this directly). The prior design
+// was one fixed hardcoded phrase per event type, reused byte-for-byte
+// across every single adventure ever played -- "Take the lead with
+// X" every time, regardless of theme or tone. Two layers now:
 //
-// Audit note: choice text used to also splice NarrativeState's free-
-// text `problem` field into these templates ("Try again -- {problem}").
-// That was the source of a recurring class of bugs across several
-// rounds of fixes -- dangling conjunctions, double conjunctions,
-// missing articles ("fallen log blocks stream") -- because Gemini's
-// output isn't guaranteed to be a grammatically complete phrase, and
-// no amount of cleanup fully closes that gap. Choice text now uses
-// ONLY reliable, structured fields (the target character's name,
-// never raw problem text); the narration shown directly above the
-// choices already establishes the situation, so choices don't need
-// to restate it. Vague-but-always-correct beats specific-but-
-// occasionally-broken for a children's product.
+//   1. Per-adventure templates (NarrativeState.choiceTemplates),
+//      generated ONCE by Gemini alongside the rest of the adventure's
+//      metadata, tailored to THIS adventure's theme -- zero added
+//      runtime cost, since it rides the one call that already
+//      happens at adventure start. Validated per-field at generation
+//      time (AdventureMetadataGenerator), so what arrives here is
+//      already known-safe: right length, correct placeholder
+//      presence, never a leaked outcome.
+//   2. A small ROTATING fallback set (2-3 phrasings per type,
+//      deterministic, not random) for when a template is missing --
+//      cheap, always-safe, and at least varies turn to turn instead
+//      of being one fixed string forever.
+//
+// Same discipline as before: still deliberately template-based, never
+// an NLP transform of free text, never re-checks feasibility, never
+// leaks a consequence.
 export class ChoiceTextBuilder {
 
     build(
@@ -31,48 +33,98 @@ export class ChoiceTextBuilder {
 
         const target = candidate.targetName;
 
-        const text = this.buildForType(candidate.type, target);
+        const adventureTemplate = narrativeState.choiceTemplates?.[candidate.type];
+
+        const text = adventureTemplate
+            ? this.fillTemplate(adventureTemplate, target)
+            : this.buildForType(candidate.type, target, narrativeState);
 
         return this.safe(text, candidate.type, target);
 
     }
 
+    // Templates use the literal placeholder "{target}" -- validated
+    // to be present/absent correctly at generation time, so this is
+    // a plain substring replace, not a parser.
+    private fillTemplate(
+        template: string,
+        target: string | undefined
+    ): string | undefined {
+
+        if (template.includes("{target}")) {
+
+            if (!target) {
+                return undefined;
+            }
+
+            return template.replace("{target}", target);
+
+        }
+
+        return template;
+
+    }
+
+    // Deterministic rotation -- picks based on how many events have
+    // happened so far, not Math.random(), so replaying the same
+    // adventure state always gets the same choice text (same
+    // reproducibility property as the rest of this engine).
+    private rotate(
+        variants: string[],
+        narrativeState: NarrativeState
+    ): string {
+
+        const index = narrativeState.recentEventTypes.length % variants.length;
+
+        return variants[index];
+
+    }
+
     private buildForType(
         type: AdventureEventType,
-        target: string | undefined
+        target: string | undefined,
+        narrativeState: NarrativeState
     ): string | undefined {
 
         switch (type) {
 
             case "helped_npc":
-                return target ? `Help ${target}` : undefined;
+                return target
+                    ? this.rotate([`Help ${target}`, `Lend ${target} a hand`, `Step in to help ${target}`], narrativeState)
+                    : undefined;
 
             case "asked_questions":
-                return target ? `Ask ${target} what happened` : undefined;
+                return target
+                    ? this.rotate([`Ask ${target} what happened`, `Ask ${target} about it`], narrativeState)
+                    : undefined;
 
             case "shared_resources":
-                return target ? `Share something with ${target}` : undefined;
+                return target
+                    ? this.rotate([`Offer ${target} what you found`, `Give ${target} a hand with supplies`], narrativeState)
+                    : undefined;
 
             case "led_team":
-                return target ? `Take the lead with ${target}` : `Take the lead`;
+                return target
+                    ? this.rotate([`Take the lead with ${target}`, `Guide ${target} forward`], narrativeState)
+                    : `Take the lead`;
 
             case "solved_puzzle":
-                return `Try to fix it`;
+                return this.rotate(["Try to fix it", "Try to work it out"], narrativeState);
 
             case "failed_puzzle":
-                return `Give it a try`;
+                return this.rotate(["Give it a try", "Take a shot at it"], narrativeState);
 
             case "retried":
-                return `Try again`;
+                return this.rotate(["Try again", "Give it another go"], narrativeState);
 
             case "ignored_warning":
-                return "Keep going despite the warning";
+                return this.rotate(["Keep going despite the warning", "Press on anyway"], narrativeState);
 
             case "explored":
-                return `Look around nearby`;
+                return this.rotate(["Look around nearby", "Explore a little further"], narrativeState);
 
             case "observed":
-                return `Look closely`;
+                return this.rotate(["Look closely", "Take a closer look"], narrativeState);
 
             default:
                 return undefined;
@@ -115,7 +167,7 @@ const GENERIC_FALLBACK: Record<AdventureEventType, (target: string | undefined) 
 
     asked_questions: target => `Ask ${target ?? "them"} about it`,
 
-    shared_resources: target => `Share something with ${target ?? "them"}`,
+    shared_resources: target => `Offer ${target ?? "them"} what you found`,
 
     led_team: () => "Take the lead",
 

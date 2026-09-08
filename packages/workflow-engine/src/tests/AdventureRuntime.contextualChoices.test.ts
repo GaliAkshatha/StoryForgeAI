@@ -52,7 +52,7 @@ class CountingLLMClient implements LLMClient {
             return { text: METADATA_RESPONSE, model: "fake-model", finishReason: "STOP" };
         }
 
-        if (request.prompt.includes("You are a renderer")) {
+        if (request.prompt.includes("SECOND PERSON")) {
             this.rendererCalls++;
             return { text: "Something happens in the story right now.", model: "fake-model", finishReason: "STOP" };
         }

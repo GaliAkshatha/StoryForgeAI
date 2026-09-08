@@ -83,7 +83,7 @@ class FakeLLMClient implements LLMClient {
             // AdventureMetadataGenerator's distinguishing JSON-shape line.
             text = METADATA_RESPONSE;
         }
-        else if (request.prompt.includes("You are a renderer")) {
+        else if (request.prompt.includes("SECOND PERSON")) {
             // GeminiTextRenderer -- used for BOTH the root's opening
             // narration and any "rich" frontier/expansion node.
             text = "Something meaningful happens, rendered by the fake Gemini renderer.";

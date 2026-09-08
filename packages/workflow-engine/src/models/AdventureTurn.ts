@@ -42,6 +42,12 @@ export interface StartAdventureOutput {
 
     emotionalTone: string;
 
+
+    // Novel immersion: the full accumulated story text so far,
+    // one entry per paragraph. The frontend renders these as a
+    // scrolling chapter instead of replacing text each turn.
+    storyLog: string[];
+
 }
 
 export interface AdventureTurnInput {
@@ -88,6 +94,10 @@ export interface AdventureTurnOutput {
     worldUpdate: WorldUpdate;
 
     learningSignals: string[];
+
+
+    // Novel immersion: the full accumulated story text so far.
+    storyLog: string[];
 
     // Additional agent output beyond the Master Prompt's minimal AI
     // Output Format -- kept because the Reflection and Analytics

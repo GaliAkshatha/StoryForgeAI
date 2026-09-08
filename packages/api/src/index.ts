@@ -1,6 +1,15 @@
 import { config } from "dotenv";
 
-config();
+// override: true is deliberate and important here -- without it,
+// dotenv's documented default behavior is to NEVER overwrite an
+// already-set process.env value. tsx (the dev runner) has its own
+// built-in .env auto-loading that can run before this file's own
+// config() call, and a leftover system-level DATABASE_URL/PERSISTENCE
+// from an unrelated project would otherwise silently win over
+// whatever's actually in packages/api/.env -- exactly the class of
+// bug that caused a real deployment to try connecting to a stale,
+// unrelated Supabase project instead of respecting PERSISTENCE=memory.
+config({ override: true });
 
 import express from "express";
 import cors from "cors";
@@ -13,6 +22,7 @@ import { childrenRoutes } from "./routes/childrenRoutes";
 import { adventureRoutes } from "./routes/adventureRoutes";
 import { reportRoutes } from "./routes/reportRoutes";
 import { settingsRoutes } from "./routes/settingsRoutes";
+import { demoRoutes } from "./routes/demoRoutes";
 
 const app = express();
 
@@ -45,9 +55,15 @@ const container = new AppContainer({
 
     embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL,
 
-    // Defaults to "postgres" -- requires DATABASE_URL. Set
-    // PERSISTENCE=memory for local dev/tests without a database.
-    persistence: (process.env.PERSISTENCE as "postgres" | "memory") ?? "postgres",
+    // Defaults to "memory" -- a missing or misconfigured .env should
+    // never silently attempt a Postgres connection. This is exactly
+    // the failure mode a real user hit: PERSISTENCE wasn't actually
+    // set, the old "postgres" default kicked in, and a leftover
+    // system-level DATABASE_URL from an unrelated project got used,
+    // producing a confusing ENOTFOUND/tenant-not-found error instead
+    // of the app just working in memory mode. Set PERSISTENCE=postgres
+    // explicitly (with a real DATABASE_URL) when you actually want it.
+    persistence: (process.env.PERSISTENCE as "postgres" | "memory") ?? "memory",
 
     jwtSecret: process.env.JWT_SECRET,
 
@@ -75,6 +91,8 @@ app.use("/api/adventures", adventureRoutes(container));
 
 app.use("/api/reports", reportRoutes(container));
 app.use("/api/settings", settingsRoutes(container));
+
+app.use("/api/demo", demoRoutes(container));
 
 const port = Number(process.env.PORT ?? 4000);
 

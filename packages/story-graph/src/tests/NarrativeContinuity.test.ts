@@ -372,6 +372,61 @@ function main(): void {
 
     }
 
+    // =========================================================
+    // J. Style-continuity -- recentNarrationOpenings tracks the
+    // actual rendered text's opening words, bounded, so the next
+    // turn's prompt can avoid repeating the same sentence shape.
+    // =========================================================
+
+    {
+
+        const before = baseNarrativeState({ recentNarrationOpenings: ["Ak looks around"] });
+
+        const node: StoryNode = {
+
+            id: "node-1", adventureId: "a1",
+            narrative: "Ak turns toward the sound, heart racing as the door creaks open.",
+            choices: [], learningSignals: [], emotion: neutralEmotionProfile(), effects: [],
+            difficulty: 1, readingLevel: "7-8", isEnding: true,
+            eventType: "explored", targetCharacterId: undefined, targetCharacterName: undefined,
+            narrativeConsequence: "something is found", createdAt: new Date().toISOString()
+
+        };
+
+        const after = transition.apply(before, node);
+
+        console.assert(
+            after.recentNarrationOpenings?.includes("Ak turns toward the"),
+            `Expected the new turn's opening words to be captured, got ${JSON.stringify(after.recentNarrationOpenings)}`
+        );
+
+        console.assert(
+            after.recentNarrationOpenings?.includes("Ak looks around"),
+            "Expected the PRIOR opening to still be present (bounded, not replaced outright)"
+        );
+
+        // --- Bounded: pushing past the limit drops the oldest ---
+
+        const withThree = transition.apply(after, {
+            ...node, narrative: "Somewhere nearby, a bell rings out across the quiet field."
+        });
+
+        const withFour = transition.apply(withThree, {
+            ...node, narrative: "A shadow moves quickly behind the old stone wall."
+        });
+
+        console.assert(
+            (withFour.recentNarrationOpenings?.length ?? 0) <= 3,
+            `Expected the list to stay bounded, got ${withFour.recentNarrationOpenings?.length} entries`
+        );
+
+        console.assert(
+            !withFour.recentNarrationOpenings?.includes("Ak looks around"),
+            "Expected the oldest opening to have been dropped once the bound was exceeded"
+        );
+
+    }
+
     console.log("Narrative continuity tests passed.");
 
 }

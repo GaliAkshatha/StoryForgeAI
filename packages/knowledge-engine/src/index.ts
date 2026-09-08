@@ -17,3 +17,4 @@ export * from "./retrieval/ReciprocalRankFusion";
 export * from "./retrieval/HybridRetriever";
 
 export * from "./services/KnowledgeBase";
+export * from "./corpus/PsychologyCorpus";

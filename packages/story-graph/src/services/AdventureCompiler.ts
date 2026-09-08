@@ -145,7 +145,11 @@ export class AdventureCompiler {
 
             initialProblem: adventure.initialProblem,
 
-            plotOutline: adventure.plotOutline
+            plotOutline: adventure.plotOutline,
+
+            choiceTemplates: adventure.choiceTemplates,
+
+            genome: adventure.genome
 
         });
 

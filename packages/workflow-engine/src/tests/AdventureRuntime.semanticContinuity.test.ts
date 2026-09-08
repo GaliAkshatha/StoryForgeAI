@@ -49,7 +49,7 @@ class FakeLLMClient implements LLMClient {
             return { text: METADATA_RESPONSE, model: "fake-model", finishReason: "STOP" };
         }
 
-        if (request.prompt.includes("You are a renderer")) {
+        if (request.prompt.includes("SECOND PERSON")) {
             return { text: "Something happens.", model: "fake-model", finishReason: "STOP" };
         }
 

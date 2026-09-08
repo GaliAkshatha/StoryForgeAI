@@ -227,7 +227,7 @@ async function main(): Promise<void> {
         const genericEvent = builder.build({ candidate, actorName: "Ak", ageRange: "7-8", narrativeState: stateWithoutFailure });
 
         console.assert(
-            genericEvent.action === "takes a breath and tries again",
+            genericEvent.action === "take a breath and try again",
             "Expected the generic fallback when genuinely no prior failure is known"
         );
 
@@ -353,11 +353,12 @@ async function main(): Promise<void> {
     }
 
     // =========================================================
-    // Real browser bug: the opening jumped straight into the
-    // situation with zero scene-setting and no character
-    // introduction at all ("A large, thorny bush has suddenly
-    // grown..." -- no "Ak" anywhere). Every rendering path for the
-    // opening must introduce the protagonist before the situation.
+    // Real browser bug (now superseded by the second-person voice
+    // switch, kept as a regression test for the underlying concern):
+    // the opening must not jump straight into the situation with
+    // zero scene-setting. Second-person design: the protagonist is
+    // deliberately never named in narration ("you" instead) -- so
+    // this now checks for "you" addressing the reader, not the name.
     // =========================================================
 
     {
@@ -377,8 +378,8 @@ async function main(): Promise<void> {
         const result = await renderer.render(openingRequest);
 
         console.assert(
-            result.text.includes("Ak"),
-            `Expected the opening to name the protagonist, got '${result.text}'`
+            /\byou\b/i.test(result.text),
+            `Expected the second-person opening to address the reader as "you", got '${result.text}'`
         );
 
         console.assert(
@@ -524,8 +525,137 @@ async function main(): Promise<void> {
         );
 
         console.assert(
-            result.text.includes("Ak") && result.text.includes("berries"),
-            "Expected the protagonist and the actual situation to both still be present"
+            /\byou\b/i.test(result.text) && result.text.includes("berries"),
+            `Expected second-person address and the actual situation to both still be present, got '${result.text}'`
+        );
+
+    }
+
+    // =========================================================
+    // Real browser bug: "Explorer looks around for anything
+    // connected to a broken magical lantern needs fixing" -- the
+    // template required `problem` to be a noun phrase (grammatical
+    // object of "connected to"), which can't be reliably guaranteed
+    // no matter how much the string itself is cleaned. Fixed by
+    // switching to the dash construction (safe regardless of whether
+    // the fragment is a noun phrase or a full clause).
+    // =========================================================
+
+    {
+
+        const builder = new SemanticEventBuilder();
+
+        const candidate = {
+
+            id: "c1", type: "explored" as const, prerequisites: [], effects: [], learningTags: [],
+            emotionalEffects: {}, relationshipEffects: [], narrativeSeed: "explores",
+            complexity: "trivial" as const, isEnding: true
+
+        };
+
+        const state = {
+
+            location: "the wood", activeCharacterIds: [], currentGoal: "help",
+            currentProblem: "a broken magical lantern needs fixing",
+            establishedFacts: [], unresolvedThreads: [], recentEventTypes: []
+
+        };
+
+        const event = builder.build({ candidate, actorName: "Ak", ageRange: "7-8", narrativeState: state });
+
+        console.assert(
+            !event.action.includes("connected to") && !event.action.includes("thinking about"),
+            `Expected the fragile prepositional slot to be gone, got '${event.action}'`
+        );
+
+        console.assert(
+            event.action.includes("—"),
+            `Expected the safe dash construction instead, got '${event.action}'`
+        );
+
+    }
+
+    // =========================================================
+    // The narration-quality fix: Adventure.genome (theme, humor,
+    // mystery, vocabulary) used to be generated once at adventure
+    // creation and never used again -- every turn's narration was
+    // hardcoded to tone "fantasy_adventure" regardless of the
+    // adventure's actual theme or intended humor/mystery balance.
+    // Proves it now genuinely reaches the render request.
+    // =========================================================
+
+    {
+
+        const builder = new SemanticEventBuilder();
+
+        const candidate = {
+
+            id: "c1", type: "explored" as const, prerequisites: [], effects: [], learningTags: [],
+            emotionalEffects: {}, relationshipEffects: [], narrativeSeed: "explores",
+            complexity: "trivial" as const, isEnding: true
+
+        };
+
+        const state = {
+
+            location: "a pirate cove", activeCharacterIds: [], currentGoal: "help",
+            currentProblem: undefined, establishedFacts: [], unresolvedThreads: [], recentEventTypes: [],
+            theme: "pirate adventure", humor: 0.8, mystery: 0.2, vocabulary: "rich"
+
+        };
+
+        const event = builder.build({ candidate, actorName: "Ak", ageRange: "7-8", narrativeState: state });
+
+        console.assert(
+            event.style.tone === "pirate adventure",
+            `Expected the adventure's real theme instead of hardcoded "fantasy_adventure", got '${event.style.tone}'`
+        );
+
+        console.assert(
+            event.style.humor === 0.8 && event.style.vocabulary === "rich",
+            `Expected humor/vocabulary to flow through from narrativeState, got humor=${event.style.humor} vocabulary=${event.style.vocabulary}`
+        );
+
+    }
+
+    // --- Pacing: moral_fork/test beats get more room than hook/
+    // complication/resolution ---
+
+    {
+
+        const builder = new SemanticEventBuilder();
+
+        const candidate = {
+
+            id: "c1", type: "explored" as const, prerequisites: [], effects: [], learningTags: [],
+            emotionalEffects: {}, relationshipEffects: [], narrativeSeed: "explores",
+            complexity: "trivial" as const, isEnding: true
+
+        };
+
+        const plotOutline = [
+            { beat: "hook" as const, summary: "" },
+            { beat: "complication" as const, summary: "" },
+            { beat: "moral_fork" as const, summary: "" },
+            { beat: "test" as const, summary: "" },
+            { beat: "resolution" as const, summary: "" }
+        ];
+
+        const stateAtHook = {
+            location: "the wood", activeCharacterIds: [], currentGoal: "help", currentProblem: undefined,
+            establishedFacts: [], unresolvedThreads: [], recentEventTypes: [],
+            plotOutline, currentBeatIndex: 0
+        };
+
+        const stateAtMoralFork = { ...stateAtHook, currentBeatIndex: 2 };
+
+        const atHook = builder.build({ candidate, actorName: "Ak", ageRange: "7-8", narrativeState: stateAtHook });
+
+        const atMoralFork = builder.build({ candidate, actorName: "Ak", ageRange: "7-8", narrativeState: stateAtMoralFork });
+
+        console.assert(
+            atMoralFork.style.maxSentences > atHook.style.maxSentences,
+            `Expected the moral_fork beat to get more room than the hook beat, got hook=${atHook.style.maxSentences} moral_fork=${atMoralFork.style.maxSentences}`
         );
 
     }

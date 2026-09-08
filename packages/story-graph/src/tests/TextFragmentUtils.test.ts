@@ -94,6 +94,16 @@ function main(): void {
         `Expected a proper noun to never get an article prepended, got '${safeDashFragment("Fiona witnessed the accident")}'`
     );
 
+    // --- Real browser bug: "the elara's footsteps approach as she
+    // notices" -- a possessive name ("Elara's") wasn't recognized as
+    // a name because the regex only matched a bare capitalized word,
+    // not one with a trailing 's. ---
+
+    console.assert(
+        lowerFirstSafely("Elara's footsteps approach") === "Elara's footsteps approach",
+        `Expected a possessive name to keep its capital letter, got '${lowerFirstSafely("Elara's footsteps approach")}'`
+    );
+
     console.log("TextFragmentUtils tests passed.");
 
 }

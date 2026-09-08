@@ -98,6 +98,7 @@ export interface StoryNode {
 
     threadResolved?: string;
 
+
     isEnding: boolean;
 
     // e.g. "triumphant", "bittersweet", "cliffhanger" -- only

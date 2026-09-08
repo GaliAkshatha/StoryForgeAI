@@ -1,11 +1,13 @@
 import { RenderRequest } from "@storyforge/llm-client";
 import { WorldState, NarrativeState, StoryProblem, PlotBeat } from "@storyforge/simulation-engine";
+import { AdventureEventType } from "@storyforge/shared";
 
 import { DeterministicExpansionService } from "./DeterministicExpansionService";
 import { EmotionGuidance } from "./EmotionTrendService";
 
 import { StoryNode } from "../models/StoryNode";
 import { AdventureCharacter } from "../models/Adventure";
+import { StoryGenome } from "../models/Adventure";
 import { neutralEmotionProfile } from "../models/EmotionProfile";
 
 export interface InitialStoryInput {
@@ -34,6 +36,10 @@ export interface InitialStoryInput {
     initialProblem: string;
 
     plotOutline: PlotBeat[];
+
+    choiceTemplates?: Partial<Record<AdventureEventType, string>>;
+
+    genome?: StoryGenome;
 
 }
 
@@ -121,9 +127,15 @@ export class InitialStoryBuilder {
 
             ageRange: input.ageRange,
 
-            tone: "fantasy_adventure",
+            tone: input.genome?.theme ?? "fantasy_adventure",
 
-            maxSentences: 3,
+            humor: input.genome?.humor,
+
+            mystery: input.genome?.mystery,
+
+            vocabulary: input.genome?.vocabulary,
+
+            maxSentences: 4,
 
             location: input.location,
 
@@ -144,6 +156,8 @@ export class InitialStoryBuilder {
             narrativeSeed: input.premise,
 
             personalizationHint: input.aboutChild,
+
+            consequenceContext: input.premise,
 
             complexity: "rich"
 
@@ -278,6 +292,16 @@ export class InitialStoryBuilder {
             unresolvedThreads: [],
 
             plotOutline: input.plotOutline,
+
+            choiceTemplates: input.choiceTemplates,
+
+            theme: input.genome?.theme,
+
+            humor: input.genome?.humor,
+
+            mystery: input.genome?.mystery,
+
+            vocabulary: input.genome?.vocabulary,
 
             currentBeatIndex: 0,
 

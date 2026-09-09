@@ -1,4 +1,4 @@
-# StoryForgeAI — Interactive Fiction for Child Life-Skills Learning
+<h1 align="center">StoryForgeAI — Interactive Fiction for Child Life-Skills Learning</h1>
 
 **Turn interactive storytelling into a personalized learning experience where every choice shapes the story, adapts to the learner, and generates meaningful learning insights.**
 

@@ -4,7 +4,7 @@ export const AdventureMetadataPrompt: PromptTemplate = {
 
     id: "adventure-metadata",
 
-    version: "1.0.0",
+    version: "1.1.0",
 
     description: "Generates ONLY adventure-level creative metadata (title, characters, world, genome, a short opening premise) -- no story graph topology. Structure is built deterministically afterward by InitialStoryBuilder.",
 
@@ -122,11 +122,11 @@ Return EXACTLY this JSON shape:
     "premise": "",
     "initialProblem": "",
     "plotOutline": [
-        { "beat": "hook", "summary": "" },
-        { "beat": "complication", "summary": "" },
-        { "beat": "moral_fork", "summary": "" },
-        { "beat": "test", "summary": "" },
-        { "beat": "resolution", "summary": "" }
+        { "beat": "hook", "summary": "", "objective": "", "sceneGoal": "", "conflict": "", "stakes": "", "choiceA": "", "choiceB": "", "consequenceA": "", "consequenceB": "", "requiredReveal": "" },
+        { "beat": "complication", "summary": "", "objective": "", "sceneGoal": "", "conflict": "", "stakes": "", "choiceA": "", "choiceB": "", "consequenceA": "", "consequenceB": "", "requiredReveal": "" },
+        { "beat": "moral_fork", "summary": "", "objective": "", "sceneGoal": "", "conflict": "", "stakes": "", "choiceA": "", "choiceB": "", "consequenceA": "", "consequenceB": "", "requiredReveal": "" },
+        { "beat": "test", "summary": "", "objective": "", "sceneGoal": "", "conflict": "", "stakes": "", "choiceA": "", "choiceB": "", "consequenceA": "", "consequenceB": "", "requiredReveal": "" },
+        { "beat": "resolution", "summary": "", "objective": "", "sceneGoal": "", "conflict": "", "stakes": "", "choiceA": "", "choiceB": "", "consequenceA": "", "consequenceB": "", "requiredReveal": "" }
     ],
     "choiceTemplates": {
         "helped_npc": "",

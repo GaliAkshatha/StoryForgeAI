@@ -59,6 +59,16 @@ export interface RenderRequest {
     // the private objective leaking into child-facing prose).
     consequenceContext?: string;
 
+    // Authored story-spine context. This is compact structured intent,
+    // not the transcript, so it keeps token usage bounded while making
+    // each scene causally connected to the chapter arc.
+    storyBeat?: string;
+    storyObjective?: string;
+    storyConflict?: string;
+    storyStakes?: string;
+    requiredReveal?: string;
+    chosenMoralPath?: "A" | "B";
+
     // Phase M's routing signal -- set by whoever builds the request
     // (the engine already decided this when building the candidate
     // event; the router doesn't re-derive it).

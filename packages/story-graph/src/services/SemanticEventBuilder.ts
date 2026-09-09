@@ -169,13 +169,19 @@ export class SemanticEventBuilder {
             return content;
         }
 
-        const priorFact = state.establishedFacts[state.establishedFacts.length - 1];
+        const beat = state.plotOutline?.[state.currentBeatIndex ?? 0];
+        const authoredConsequence = beat && state.chosenMoralPath
+            ? (state.chosenMoralPath === "A" ? beat.consequenceA : beat.consequenceB)
+            : undefined;
 
-        if (!priorFact) {
+        const priorFact = state.establishedFacts[state.establishedFacts.length - 1];
+        const callbackSource = authoredConsequence || priorFact;
+
+        if (!callbackSource) {
             return content;
         }
 
-        const callback = lowerFirstSafely(priorFact);
+        const callback = lowerFirstSafely(callbackSource);
 
         return {
 

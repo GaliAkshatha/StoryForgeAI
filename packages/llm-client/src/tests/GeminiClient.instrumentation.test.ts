@@ -102,11 +102,17 @@ async function main(): Promise<void> {
 
     const stats = llmInstrumentation.getStats();
 
-    console.assert(stats.totalCalls === 2, `Expected 2 total calls, got ${stats.totalCalls}`);
+    // Retry pass: a 429 is genuinely retryable (transient rate-limit,
+    // not a permanent failure), so this now makes MAX_ATTEMPTS (3)
+    // attempts before giving up, not 1 -- each attempt is recorded
+    // individually. This is the correct, intended new behavior (see
+    // GeminiClient.retry.test.ts for the retry logic itself), not a
+    // regression in these counts.
+    console.assert(stats.totalCalls === 4, `Expected 4 total calls (1 success + 3 retried failures), got ${stats.totalCalls}`);
 
     console.assert(stats.successfulCalls === 1, `Expected 1 successful call, got ${stats.successfulCalls}`);
 
-    console.assert(stats.failedCalls === 1, `Expected 1 failed call, got ${stats.failedCalls}`);
+    console.assert(stats.failedCalls === 3, `Expected 3 failed calls (all retry attempts), got ${stats.failedCalls}`);
 
     console.assert(stats.totalInputTokens === 342, `Expected 342 input tokens recorded, got ${stats.totalInputTokens}`);
 
@@ -118,8 +124,8 @@ async function main(): Promise<void> {
     );
 
     console.assert(
-        stats.callsByPurpose["generate_adventure_blueprint"] === 1,
-        "Expected generate_adventure_blueprint counted once, from the failed call"
+        stats.callsByPurpose["generate_adventure_blueprint"] === 3,
+        "Expected generate_adventure_blueprint counted 3 times, once per retry attempt"
     );
 
     console.log("GeminiClient instrumentation demonstration completed (network layer mocked, no real API key used).");

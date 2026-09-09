@@ -57,6 +57,27 @@ export interface PlotBeat {
 
     summary: string;
 
+    // Story-director fields. Optional so older persisted adventures
+    // remain readable; new adventures populate these in one metadata
+    // call. They describe CAUSAL story intent, not prose.
+    objective?: string;
+
+    sceneGoal?: string;
+
+    conflict?: string;
+
+    stakes?: string;
+
+    choiceA?: string;
+
+    choiceB?: string;
+
+    consequenceA?: string;
+
+    consequenceB?: string;
+
+    requiredReveal?: string;
+
 }
 
 export interface NarrativeState {
@@ -118,6 +139,11 @@ export interface NarrativeState {
     plotOutline?: PlotBeat[];
 
     currentBeatIndex?: number;
+
+    // Which side of the authored moral fork the child actually chose.
+    // This is persisted only after traversal, never while sibling
+    // choices are merely generated.
+    chosenMoralPath?: "A" | "B";
 
     // Choice-variety pass: per-adventure choice phrase templates
     // (from Adventure.choiceTemplates), one per event type, so choice

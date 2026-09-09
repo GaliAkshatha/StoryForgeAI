@@ -23,6 +23,23 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 // parse failure.
 const DEBUG_RAW_RESPONSE = process.env.LLM_DEBUG_RAW_RESPONSE === "true";
 
+// Errors worth retrying automatically -- both are explicitly
+// transient per Google's own error messages ("usually temporary",
+// "try again"), unlike a 404 (wrong model name) or 400 (malformed
+// request), which would fail identically on every retry and should
+// surface immediately instead of wasting time.
+const RETRYABLE_STATUSES = [503, 429];
+
+const MAX_ATTEMPTS = 3;
+
+const BASE_BACKOFF_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+
+    return new Promise(resolve => setTimeout(resolve, ms));
+
+}
+
 export class GeminiClient implements LLMClient {
 
     private readonly client: GoogleGenAI;
@@ -38,6 +55,57 @@ export class GeminiClient implements LLMClient {
     }
 
     async generate(
+        request: LLMRequest
+    ): Promise<LLMResponse> {
+
+        let lastError: unknown;
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+
+            try {
+
+                return await this.attemptGenerate(request);
+
+            }
+            catch (error) {
+
+                lastError = error;
+
+                const status = error instanceof ApiError ? error.status : undefined;
+
+                const isRetryable = status !== undefined && RETRYABLE_STATUSES.includes(status);
+
+                if (!isRetryable || attempt === MAX_ATTEMPTS) {
+
+                    throw error;
+
+                }
+
+                // Exponential backoff (1s, 2s) -- long enough to let a
+                // genuine "high demand" spike pass, short enough that
+                // a child waiting for their story isn't stuck for
+                // long. Logged so this is visible, not silent.
+                const delayMs = BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+
+                console.warn(
+                    `\n===== GEMINI RETRY =====\n` +
+                    `attempt ${attempt}/${MAX_ATTEMPTS} failed with status ${status} -- retrying in ${delayMs}ms\n` +
+                    `=========================\n`
+                );
+
+                await sleep(delayMs);
+
+            }
+
+        }
+
+        // Unreachable (the loop always either returns or throws) --
+        // satisfies TypeScript's control-flow analysis.
+        throw lastError;
+
+    }
+
+    private async attemptGenerate(
         request: LLMRequest
     ): Promise<LLMResponse> {
 

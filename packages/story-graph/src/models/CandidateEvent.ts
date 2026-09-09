@@ -85,6 +85,16 @@ export interface CandidateEvent {
 
     isEnding: boolean;
 
+    // Optional authored-arc action/consequence. Used only when the
+    // current beat supplies a concrete moral choice. Keeping it on
+    // the candidate means the runtime can persist the exact branch
+    // without asking the LLM to invent a new dilemma each turn.
+    plotBranch?: "A" | "B";
+
+    plotChoiceText?: string;
+
+    plotConsequence?: string;
+
     endingType?: string;
 
 }

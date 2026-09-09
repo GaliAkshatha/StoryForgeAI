@@ -287,6 +287,28 @@ export class AdventureMetadataGenerator {
             throw new Error("Metadata output missing a well-formed 5-beat plotOutline.");
         }
 
+        const expectedBeats = ["hook", "complication", "moral_fork", "test", "resolution"];
+
+        output.plotOutline.forEach((beat, index) => {
+            if (beat.beat !== expectedBeats[index]) {
+                throw new Error(`Metadata output plotOutline beat ${index + 1} must be '${expectedBeats[index]}'.`);
+            }
+
+            for (const field of ["summary", "objective", "sceneGoal", "conflict", "stakes", "requiredReveal"] as const) {
+                if (typeof beat[field] !== "string" || beat[field].trim().length === 0) {
+                    throw new Error(`Metadata output plotOutline.${field} is missing for '${beat.beat}'.`);
+                }
+            }
+
+            if (beat.beat === "moral_fork") {
+                for (const field of ["choiceA", "choiceB", "consequenceA", "consequenceB"] as const) {
+                    if (typeof beat[field] !== "string" || beat[field].trim().length === 0) {
+                        throw new Error(`Metadata output plotOutline.${field} is required for moral_fork.`);
+                    }
+                }
+            }
+        });
+
     }
 
 }

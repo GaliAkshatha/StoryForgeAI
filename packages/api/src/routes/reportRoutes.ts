@@ -106,6 +106,38 @@ export function reportRoutes(app: AppContainer): Router {
 
     });
 
+    // Cross-adventure evidence patterns -- "what we observed / recent
+    // example / pattern" instead of a single-adventure trait score.
+    router.get("/:childId/patterns", async (req: AuthenticatedRequest, res) => {
+
+        const child = await app.children.getProfile(String(req.params.childId));
+
+        if (!child || child.parentId !== req.parentId) {
+
+            res.status(404).json({ error: "Child not found." });
+
+            return;
+
+        }
+
+        try {
+
+            const patterns = await app.evidencePatterns.getPatterns(child.id);
+
+            res.json({ patterns });
+
+        }
+        catch (error) {
+
+            console.error("\n===== Route failed =====\n", error, "\n=========================\n");
+
+            res.status(500).json({
+                error: "Could not generate evidence patterns."
+            });
+        }
+
+    });
+
     return router;
 
 }

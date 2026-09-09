@@ -328,8 +328,7 @@ export class AdventureRuntime {
         if (!nextNode.isEnding && nextNode.choices.length === 0) {
 
             const endingEligible = this.container.chapterProgressionEngine.canEnd(
-                advancedChapterState,
-                advancedNarrativeState?.currentBeatIndex
+                advancedChapterState
             );
 
             // Pacing pass (Point 8): a real decision menu appears at

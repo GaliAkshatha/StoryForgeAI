@@ -132,11 +132,7 @@ export class DeterministicExpansionService {
 
             domain: input.domain,
 
-            turnIndex: input.turn,
-
-            plotBeat: input.narrativeState.plotOutline?.[
-                input.narrativeState.currentBeatIndex ?? 0
-            ]
+            turnIndex: input.turn
 
         });
 
@@ -183,42 +179,19 @@ export class DeterministicExpansionService {
 
         }
 
-        // Story director gate: once the authored spine has a beat,
-        // only candidates capable of ENACTING that beat are allowed
-        // into scoring when at least one such candidate is valid.
-        // This is stronger than a soft score bonus: the plot cannot
-        // be replaced by an unrelated generic event simply because
-        // learning/novelty happened to score higher.
-        const currentBeat = input.narrativeState.plotOutline?.[
-            input.narrativeState.currentBeatIndex ?? 0
-        ];
-
-        const beatAlignedTypes: Record<string, AdventureEventType[]> = {
-            hook: ["observed", "explored", "asked_questions"],
-            complication: ["explored", "ignored_warning", "failed_puzzle", "asked_questions"],
-            moral_fork: ["helped_npc", "asked_questions", "shared_resources"],
-            test: ["retried", "solved_puzzle", "led_team"],
-            resolution: ["solved_puzzle", "shared_resources", "led_team"]
-        };
-
-        const alignedValid = currentBeat
-            ? valid.filter(candidate => beatAlignedTypes[currentBeat.beat]?.includes(candidate.type))
-            : [];
-
-        const eligible = alignedValid.length > 0 ? alignedValid : valid;
-
-        // Section 4: memory enrichment happens AFTER hard constraints
-        // and the story-beat gate, BEFORE scoring.
+        // Section 4: memory enrichment happens AFTER hard constraints,
+        // BEFORE scoring -- it can influence which VALID candidate
+        // wins, never which candidates are eligible to begin with.
         const relevantMemories = this.memoryRetrievalService.retrieve(
             input.recentEvents,
-            { limit: 5, relevantTags: eligible.map(candidate => candidate.type) }
+            { limit: 5, relevantTags: valid.map(candidate => candidate.type) }
         );
 
         const seed = SeededRandom.seedFromString(`${input.adventureId}:${input.turn}`);
 
         const ranked = this.eventScorer.score(
 
-            eligible,
+            valid,
 
             {
 
@@ -243,10 +216,8 @@ export class DeterministicExpansionService {
         );
 
         const targetCount = input.offerChoice
-            ? currentBeat?.beat === "moral_fork"
-                ? Math.min(2, eligible.length)
-                : this.choiceCountPolicy.determine(eligible.length)
-            : Math.min(1, eligible.length);
+            ? this.choiceCountPolicy.determine(valid.length)
+            : Math.min(1, valid.length);
 
         // Section H: small deterministic diversity rule -- walk the
         // ranked list greedily, but skip a candidate whose type has
@@ -257,7 +228,7 @@ export class DeterministicExpansionService {
         // targetCount (never invents a candidate to avoid this).
         const scored: ScoredCandidate[] = [];
 
-        const usedKeys = new Set<string>();
+        const usedTypes = new Set<string>();
 
         for (const entry of ranked) {
 
@@ -265,20 +236,13 @@ export class DeterministicExpansionService {
                 break;
             }
 
-            // At the moral fork, diversity means different MORAL
-            // paths, not merely different event mechanics. Elsewhere
-            // we keep the original event-type diversity behavior.
-            const key = currentBeat?.beat === "moral_fork"
-                ? (entry.event.plotBranch ?? entry.event.type)
-                : entry.event.type;
-
-            if (usedKeys.has(key)) {
+            if (usedTypes.has(entry.event.type)) {
                 continue;
             }
 
             scored.push(entry);
 
-            usedKeys.add(key);
+            usedTypes.add(entry.event.type);
 
         }
 
@@ -350,16 +314,9 @@ export class DeterministicExpansionService {
 
                 skill: semanticEvent.learning?.skill,
 
-                consequenceContext: candidate.plotConsequence ?? semanticEvent.consequence,
+                consequenceContext: semanticEvent.consequence,
 
                 personalizationHint: semanticEvent.personalizationHint,
-
-                storyBeat: input.narrativeState.plotOutline?.[input.narrativeState.currentBeatIndex ?? 0]?.beat,
-                storyObjective: input.narrativeState.plotOutline?.[input.narrativeState.currentBeatIndex ?? 0]?.objective,
-                storyConflict: input.narrativeState.plotOutline?.[input.narrativeState.currentBeatIndex ?? 0]?.conflict,
-                storyStakes: input.narrativeState.plotOutline?.[input.narrativeState.currentBeatIndex ?? 0]?.stakes,
-                requiredReveal: input.narrativeState.plotOutline?.[input.narrativeState.currentBeatIndex ?? 0]?.requiredReveal,
-                chosenMoralPath: input.narrativeState.chosenMoralPath,
 
                 // Correctness fix: the deterministic template path
                 // must never be responsible for grammatically
@@ -420,9 +377,7 @@ export class DeterministicExpansionService {
                 // apply NarrativeStateTransition deterministically
                 // WHEN this node is visited, without recomputing
                 // anything or touching unvisited siblings.
-                narrativeConsequence: candidate.plotConsequence
-                    ?? semanticEvent.factEstablished
-                    ?? semanticEvent.consequence,
+                narrativeConsequence: semanticEvent.factEstablished ?? semanticEvent.consequence,
 
                 characterIntroducedId: semanticEvent.characterIntroduced?.id,
 
@@ -431,8 +386,6 @@ export class DeterministicExpansionService {
                 threadIntroduced: semanticEvent.threadIntroduced,
 
                 threadResolved: semanticEvent.threadResolved,
-
-                plotBranch: candidate.plotBranch,
 
                 createdAt: new Date().toISOString()
 
@@ -443,7 +396,7 @@ export class DeterministicExpansionService {
                 id: `${input.nodeIdPrefix}-choice-${i}`,
 
                 text: input.offerChoice
-                    ? (candidate.plotChoiceText ?? this.choiceTextBuilder.build(candidate, input.narrativeState))
+                    ? this.choiceTextBuilder.build(candidate, input.narrativeState)
                     : "Continue",
 
                 nextNodeId: nodeId

@@ -106,6 +106,16 @@ export interface WeeklyTrendPoint {
     skillGrowth: SkillGrowthPoint[];
 }
 
+export interface SkillPattern {
+    skill: string;
+    label: string;
+    whatWeObserved: string;
+    timesObserved: number;
+    adventuresConsidered: number;
+    recentExample?: string;
+    encouragementPrompt: string;
+}
+
 class ApiError extends Error {}
 
 async function request<T>(
@@ -278,6 +288,17 @@ export const api = {
 
         return request<{ weeklyTrend: WeeklyTrendPoint[]; summary: LearningSummary | null }>(
             `/reports/${childId}/trend`,
+            { token }
+        );
+
+    },
+
+    // Evidence-first patterns: what keeps showing up across the
+    // child's recent adventures, not just one adventure's score.
+    evidencePatterns(token: string, childId: string) {
+
+        return request<{ patterns: SkillPattern[] }>(
+            `/reports/${childId}/patterns`,
             { token }
         );
 

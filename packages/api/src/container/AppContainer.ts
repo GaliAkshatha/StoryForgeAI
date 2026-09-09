@@ -19,6 +19,7 @@ import {
 
 import {
     LearningService,
+    CrossAdventurePatternService,
     LearningGoalService,
     LearningSummaryService,
     InMemoryLearningRepository,
@@ -100,6 +101,8 @@ export class AppContainer {
     readonly children: ChildService;
 
     readonly learning: LearningService;
+
+    readonly evidencePatterns: CrossAdventurePatternService;
 
     readonly learningGoals: LearningGoalService;
 
@@ -249,6 +252,8 @@ export class AppContainer {
         this.children = new ChildService(childRepository);
 
         this.learning = new LearningService(learningRepository);
+
+        this.evidencePatterns = new CrossAdventurePatternService(learningRepository);
 
         this.baseAiConfig = {
 

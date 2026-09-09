@@ -78,25 +78,12 @@ export class ChapterProgressionEngine {
     // DeterministicExpansionService only ever ask this question, they
     // never re-derive it.
     canEnd(
-        state: ChapterState,
-        currentBeatIndex?: number
+        state: ChapterState
     ): boolean {
 
-        const baseEligible = state.climaxReached &&
-            state.phase === "resolution" &&
-            state.turn >= MIN_TURN_TO_END;
-
-        // New adventures pass the authored beat index. Requiring the
-        // final resolution beat prevents the old "three meaningful
-        // events => climax => ending" shortcut from terminating the
-        // story before its complication, dilemma and consequence have
-        // actually been played. The optional argument preserves
-        // compatibility with older callers/tests.
-        if (currentBeatIndex !== undefined) {
-            return baseEligible && currentBeatIndex >= 4 && state.turn >= 5;
-        }
-
-        return baseEligible;
+        return state.climaxReached &&
+               state.phase === "resolution" &&
+               state.turn >= MIN_TURN_TO_END;
 
     }
 

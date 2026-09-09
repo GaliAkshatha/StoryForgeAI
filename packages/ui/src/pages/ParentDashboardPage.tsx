@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { api, ChildProfile, WeeklyReport, WeeklyTrendPoint, LearningSummary } from "../api/client";
+import { api, ChildProfile, WeeklyReport, WeeklyTrendPoint, LearningSummary, SkillPattern } from "../api/client";
 import { useSession } from "../state/SessionContext";
 import { ParchmentCard } from "../components/ParchmentCard";
 import { RuneButton } from "../components/RuneButton";
@@ -27,6 +27,10 @@ export function ParentDashboardPage() {
     const [weeklyTrend, setWeeklyTrend] = useState<WeeklyTrendPoint[] | null>(null);
 
     const [summary, setSummary] = useState<LearningSummary | null>(null);
+
+    const [patterns, setPatterns] = useState<SkillPattern[] | null>(null);
+
+    const [patternsLoading, setPatternsLoading] = useState(false);
 
     const [trendLoading, setTrendLoading] = useState(false);
 
@@ -56,6 +60,7 @@ export function ParentDashboardPage() {
             setReport(null);
             setWeeklyTrend(null);
             setSummary(null);
+            setPatterns(null);
             return;
         }
 
@@ -71,6 +76,16 @@ export function ParentDashboardPage() {
             })
 
             .finally(() => setTrendLoading(false));
+
+        setPatternsLoading(true);
+
+        api.evidencePatterns(token, selectedChildId)
+
+            .then(result => setPatterns(result.patterns))
+
+            .catch(() => setPatterns([]))
+
+            .finally(() => setPatternsLoading(false));
 
     }, [token, selectedChildId]);
 
@@ -196,6 +211,10 @@ export function ParentDashboardPage() {
                                         Play now
                                     </RuneButton>
                                 </ParchmentCard>
+
+                                <div className="md:col-span-2">
+                                    <EvidencePatternsPanel patterns={patterns} loading={patternsLoading} />
+                                </div>
 
                                 <TrendPanel trend={weeklyTrend} summary={summary} loading={trendLoading} />
 
@@ -333,6 +352,90 @@ const CANONICAL_SKILL_COLORS: Record<string, string> = {
 
 function skillColor(skill: string): string {
     return CANONICAL_SKILL_COLORS[skill.toLowerCase()] ?? "#4ED9C5";
+}
+
+// Evidence-first: "what we observed / recent example / try
+// encouraging" for a real, repeated pattern across the child's
+// recent adventures -- never a one-line trait verdict. Backed by
+// CrossAdventurePatternService, which only surfaces something here
+// once it's genuinely shown up more than once.
+function EvidencePatternsPanel({
+    patterns,
+    loading
+}: {
+    patterns: SkillPattern[] | null;
+    loading: boolean;
+}) {
+
+    if (loading && !patterns) {
+        return (
+            <ParchmentCard>
+                <p className="text-parchmentDim text-sm animate-pulseGlow">Looking for patterns across recent adventures…</p>
+            </ParchmentCard>
+        );
+    }
+
+    if (!patterns || patterns.length === 0) {
+        return (
+            <ParchmentCard>
+                <h3 className="font-display text-lg text-mystic mb-2">What We're Noticing</h3>
+                <p className="text-parchmentDim text-sm">
+                    Once a pattern shows up more than once across a few adventures, it'll appear here —
+                    not from a single adventure alone.
+                </p>
+            </ParchmentCard>
+        );
+    }
+
+    return (
+        <ParchmentCard>
+
+            <h3 className="font-display text-lg text-mystic mb-1">What We're Noticing</h3>
+
+            <p className="text-parchmentDim text-xs mb-5">
+                Patterns across recent adventures, not a score from any single one.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+
+                {patterns.map(pattern => (
+
+                    <div
+                        key={pattern.skill}
+                        className="rounded-lg border border-parchmentDim/15 p-4"
+                        style={{ borderLeftColor: skillColor(pattern.skill), borderLeftWidth: 3 }}
+                    >
+
+                        <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-display text-parchment text-base">{pattern.label}</h4>
+                            <span className="text-parchmentDim/60 text-xs font-body">
+                                {pattern.timesObserved} of {pattern.adventuresConsidered}
+                            </span>
+                        </div>
+
+                        <p className="text-parchmentDim text-sm mb-3">
+                            {pattern.whatWeObserved}
+                        </p>
+
+                        {pattern.recentExample && (
+                            <p className="text-parchment/80 text-sm italic border-l border-parchmentDim/20 pl-3 mb-3">
+                                "{pattern.recentExample}"
+                            </p>
+                        )}
+
+                        <p className="text-mystic text-xs font-body">
+                            {pattern.encouragementPrompt}
+                        </p>
+
+                    </div>
+
+                ))}
+
+            </div>
+
+        </ParchmentCard>
+    );
+
 }
 
 function TrendPanel({

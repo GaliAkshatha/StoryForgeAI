@@ -52,8 +52,6 @@ export class NarrativeStateTransition {
 
         let activeProblem = current.activeProblem;
 
-        const chosenMoralPath = node.plotBranch ?? current.chosenMoralPath;
-
         if (node.eventType === "asked_questions" && !currentProblem) {
 
             currentProblem = node.narrativeConsequence ?? current.currentProblem;
@@ -125,9 +123,7 @@ export class NarrativeStateTransition {
 
             unresolvedThreads,
 
-            recentEventTypes,
-
-            chosenMoralPath
+            recentEventTypes
 
         };
 

@@ -121,11 +121,11 @@ export interface Adventure {
     // richer opening-scene seed used for root narration.
     initialProblem: string;
 
-    // Authored causal story spine -- 5 beats (hook/complication/
-    // moral_fork/test/resolution). Each beat can carry an objective,
-    // conflict, stakes, required reveal, and (for moral_fork) two
-    // concrete choices plus their consequences. The runtime uses this
-    // as story direction; it is not a prose transcript.
+    // Story arc pass: the authored plot -- 5 controlled-phrase beats
+    // (hook/complication/moral_fork/test/resolution). This is what
+    // gives the chapter an actual arc with a twist instead of
+    // disconnected events; the deterministic engine advances through
+    // these as ChapterProgressionEngine's phase advances.
     plotOutline: PlotBeat[];
 
     // Choice-variety pass: per-adventure choice phrase templates

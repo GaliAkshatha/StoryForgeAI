@@ -306,7 +306,9 @@ export function AdventurePage() {
                 )}
 
                 {(stage === "playing" || stage === "resolving") && (
-                    <div className="flex flex-col gap-6">
+                    <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+
+                        <div className="flex flex-col gap-4">
 
                         {/* ─── Chapter header ─── */}
                         <p className="text-xs uppercase tracking-[0.25em] text-mystic/60 text-center font-display select-none">
@@ -355,10 +357,14 @@ export function AdventurePage() {
 
                         </ParchmentCard>
 
-                        {/* ─── Decision fork OR page turn ─── */}
+                        </div>
+
+                        {/* ─── Right-side column: decision fork OR page turn ─── */}
+                        <div className="flex flex-col gap-3 lg:sticky lg:top-6">
+
                         {hasRealChoice ? (
 
-                            /* Real decision point — choice cards */
+                            /* Real decision point — choice cards, stacked in this narrower column */
                             <div className="flex flex-col gap-3">
 
                                 <p className="text-xs uppercase tracking-widest text-ember/70 text-center font-display select-none">
@@ -366,7 +372,7 @@ export function AdventurePage() {
                                 </p>
 
                                 <div
-                                    className="grid sm:grid-cols-2 gap-3"
+                                    className="flex flex-col gap-3"
                                     role="group"
                                     aria-label="Choose your path"
                                 >
@@ -379,10 +385,10 @@ export function AdventurePage() {
                                         return (
                                             <motion.button
                                                 key={choice.id}
-                                                initial={{ opacity: 0, y: 16 }}
+                                                initial={{ opacity: 0, x: 16 }}
                                                 animate={{
                                                     opacity: isDimmed ? 0.35 : 1,
-                                                    y: 0,
+                                                    x: 0,
                                                     scale: isSelected ? 1.02 : 1
                                                 }}
                                                 transition={{
@@ -390,7 +396,7 @@ export function AdventurePage() {
                                                     duration: 0.35,
                                                     ease: "easeOut"
                                                 }}
-                                                whileHover={!selectedChoiceId ? { y: -3, borderColor: "rgba(78, 217, 197, 0.8)" } : undefined}
+                                                whileHover={!selectedChoiceId ? { x: -3, borderColor: "rgba(78, 217, 197, 0.8)" } : undefined}
                                                 whileTap={!selectedChoiceId ? { scale: 0.98 } : undefined}
                                                 onClick={() => handleChoose(choice)}
                                                 disabled={stage === "resolving"}
@@ -451,6 +457,8 @@ export function AdventurePage() {
                         )}
 
                         {error && <ErrorNotice message={error} />}
+
+                        </div>
 
                     </div>
                 )}

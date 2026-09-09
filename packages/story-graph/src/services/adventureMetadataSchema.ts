@@ -152,29 +152,16 @@ export const ADVENTURE_METADATA_SCHEMA = {
 
                     },
 
-                    // Short scene-level summary, not prose narration.
-                    summary: { type: "STRING" },
-
-                    // The fields below form the causal story spine.
-                    // They tell the runtime what the beat is FOR and
-                    // how the player's moral choice changes the story.
-                    objective: { type: "STRING" },
-                    sceneGoal: { type: "STRING" },
-                    conflict: { type: "STRING" },
-                    stakes: { type: "STRING" },
-                    choiceA: { type: "STRING" },
-                    choiceB: { type: "STRING" },
-                    consequenceA: { type: "STRING" },
-                    consequenceB: { type: "STRING" },
-                    requiredReveal: { type: "STRING" }
+                    // Short controlled phrase, e.g. "a friend needs
+                    // help with a broken cart" or "another squirrel
+                    // saw what really happened" -- same discipline as
+                    // initialProblem: never a character bio, never a
+                    // full sentence of prose.
+                    summary: { type: "STRING" }
 
                 },
 
-                required: [
-                    "beat", "summary", "objective", "sceneGoal", "conflict",
-                    "stakes", "choiceA", "choiceB", "consequenceA",
-                    "consequenceB", "requiredReveal"
-                ]
+                required: ["beat", "summary"]
 
             }
 

@@ -98,9 +98,6 @@ export interface StoryNode {
 
     threadResolved?: string;
 
-    // Authored-arc branch marker. Only populated for the actual moral
-    // fork branch selected by the child.
-    plotBranch?: "A" | "B";
 
     isEnding: boolean;
 

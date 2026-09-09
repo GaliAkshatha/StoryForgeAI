@@ -18,8 +18,6 @@ export interface CandidateGenerationContext {
 
     turnIndex: number;
 
-    plotBeat?: import("@storyforge/simulation-engine").PlotBeat;
-
 }
 
 interface FlagEffect {
@@ -223,19 +221,6 @@ export class CandidateEventGenerator {
             ? activeCharacters[context.turnIndex % activeCharacters.length]
             : undefined;
 
-        const beat = context.plotBeat;
-        const moralFork = beat?.beat === "moral_fork";
-        const branch = moralFork
-            ? (["helped_npc", "shared_resources", "solved_puzzle", "retried", "explored"].includes(template.type) ? "A" : "B") as "A" | "B"
-            : undefined;
-        const plotChoiceText = moralFork
-            ? (branch === "A" ? beat?.choiceA : beat?.choiceB)
-            : undefined;
-        const plotConsequence = moralFork
-            ? (branch === "A" ? beat?.consequenceA : beat?.consequenceB)
-            : undefined;
-
-
         const relationshipEffects = (template.relationshipDelta && target) ? [{
 
             characterId: target.id,
@@ -298,13 +283,7 @@ export class CandidateEventGenerator {
 
             complexity: template.complexity,
 
-            isEnding: true,
-
-            plotBranch: branch,
-
-            plotChoiceText,
-
-            plotConsequence
+            isEnding: true
 
         };
 

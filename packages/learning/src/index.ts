@@ -7,6 +7,8 @@ export * from "./models/ParentFeedback";
 export * from "./repositories/LearningRepository";
 export * from "./repositories/ParentFeedbackRepository";
 export * from "./services/LearningService";
+export * from "./services/CrossAdventurePatternService";
+export * from "./models/traitCopy";
 export * from "./services/AIServices";
 export * from "./services/LearningGoalService";
 export * from "./services/LearningSummaryService";

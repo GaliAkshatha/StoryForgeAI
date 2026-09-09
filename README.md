@@ -1,4 +1,4 @@
-# StoryForgeAI — Adaptive AI Storytelling & Learning Platform
+# StoryForgeAI — Interactive Fiction for Child Life-Skills Learning
 
 **Turn interactive storytelling into a personalized learning experience where every choice shapes the story, adapts to the learner, and generates meaningful learning insights.**
 

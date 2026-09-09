@@ -434,12 +434,6 @@ The frontend and backend development servers will start through the workspace co
 
 ---
 
-## Deployment
-
-**Live Application:** https://storyforgeai.akshathag.in/
-
-**Backend API:** https://storyforgeai-1.onrender.com/
-
----
-
-Built by [Akshatha Gali](https://github.com/GaliAkshatha)
+<p align="center">
+  Built by <a href="https://github.com/GaliAkshatha">Akshatha</a>
+</p>

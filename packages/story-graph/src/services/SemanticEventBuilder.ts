@@ -258,7 +258,9 @@ export class SemanticEventBuilder {
 
                 return {
 
-                    action: `share something useful with ${target}`,
+                    action: problem
+                        ? `share something with ${target} — ${problem}`
+                        : `share something useful with ${target}`,
 
                     consequence: `${target} looks grateful — a little more trust settles between you`,
 
@@ -281,7 +283,7 @@ export class SemanticEventBuilder {
 
                     consequence: establishesProblem
                         ? `${target} explains what's wrong, voice low and careful`
-                        : `${target} shares a new detail, something they hadn't mentioned before`,
+                        : `${target} says more about ${topic}`,
 
                     factEstablished: `${target} told you about ${topic}`,
 

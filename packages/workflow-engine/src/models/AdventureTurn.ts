@@ -42,6 +42,12 @@ export interface StartAdventureOutput {
 
     emotionalTone: string;
 
+    // Which of the 5 authored plot beats (hook/complication/
+    // moral_fork/test/resolution) this turn is at -- lets the
+    // frontend show a chapter label that actually reflects story
+    // progress instead of a fixed, never-changing "Chapter One".
+    plotBeat?: string;
+
 
     // Novel immersion: the full accumulated story text so far,
     // one entry per paragraph. The frontend renders these as a
@@ -89,6 +95,12 @@ export interface AdventureTurnOutput {
     // as a small enrichment the frontend can optionally use (e.g. to
     // theme the scene's animation/color) -- purely additive.
     emotionalTone: string;
+
+    // Which of the 5 authored plot beats (hook/complication/
+    // moral_fork/test/resolution) this turn is at -- lets the
+    // frontend show a chapter label that actually reflects story
+    // progress instead of a fixed, never-changing "Chapter One".
+    plotBeat?: string;
 
     // What the backend consumes. Never rendered by the frontend.
     worldUpdate: WorldUpdate;

@@ -170,6 +170,10 @@ export class AdventureRuntime {
 
             emotionalTone: this.dominantEmotion(rootNode),
 
+            plotBeat: worldState.narrativeState?.plotOutline?.[
+                worldState.narrativeState?.currentBeatIndex ?? 0
+            ]?.beat,
+
 
             storyLog
 
@@ -744,6 +748,10 @@ export class AdventureRuntime {
             isEnding: nextNode.isEnding,
 
             emotionalTone: this.dominantEmotion(nextNode),
+
+            plotBeat: updatedWorldState.narrativeState?.plotOutline?.[
+                updatedWorldState.narrativeState?.currentBeatIndex ?? 0
+            ]?.beat,
 
             worldUpdate: {
 

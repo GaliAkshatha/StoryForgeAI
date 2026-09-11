@@ -75,6 +75,7 @@ export interface StartAdventureResult {
     choices: Choice[];
     isEnding: boolean;
     emotionalTone: string;
+    plotBeat?: string;
     storyLog: string[];
     objective: LearningObjective;
 }
@@ -84,6 +85,7 @@ export interface AdventureTurnResult {
     choices: Choice[];
     isEnding: boolean;
     emotionalTone: string;
+    plotBeat?: string;
     learningSignals: string[];
     storyLog: string[];
     // v3: only populated on the turn that concludes a chapter --

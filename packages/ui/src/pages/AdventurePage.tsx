@@ -18,6 +18,20 @@ import { NarrationControls } from "../components/NarrationControls";
 import { LoadingJourney } from "../components/LoadingJourney";
 import { ErrorNotice } from "../components/ErrorNotice";
 
+// Maps the real authored plot beat (hook/complication/moral_fork/
+// test/resolution) to a chapter label -- replaces a hardcoded
+// "Chapter One" that never changed regardless of how far into the
+// story the child actually was.
+const CHAPTER_LABEL_BY_BEAT: Record<string, string> = {
+
+    hook: "Chapter One",
+    complication: "Chapter Two",
+    moral_fork: "Chapter Three",
+    test: "Chapter Four",
+    resolution: "Chapter Five"
+
+};
+
 type Stage =
     | "setup"
     | "opening-loading"
@@ -43,7 +57,24 @@ export function AdventurePage() {
 
     const [stage, setStage] = useState<Stage>("setup");
 
-    const [location, setLocation] = useState("the edge of the Whispering Wood");
+    // The parent no longer picks a starting location (removed per
+    // feedback -- they should only be asked what needs to be
+    // learned). Picked once per new adventure from a small varied
+    // set, rather than defaulting to the same place every time.
+    const [location] = useState(() => {
+
+        const starters = [
+            "the edge of the Whispering Wood",
+            "a quiet fishing village at low tide",
+            "a mountain trailhead just past sunrise",
+            "a bustling market square",
+            "a small lighthouse on a rocky coast",
+            "a treehouse village deep in the canopy"
+        ];
+
+        return starters[Math.floor(Math.random() * starters.length)];
+
+    });
 
     const [learningGoal, setLearningGoal] = useState("");
 
@@ -56,6 +87,8 @@ export function AdventurePage() {
     const [storyLog, setStoryLog] = useState<string[]>([]);
 
     const [emotionalTone, setEmotionalTone] = useState("");
+
+    const [plotBeat, setPlotBeat] = useState<string | undefined>(undefined);
 
     const [choices, setChoices] = useState<Choice[]>([]);
 
@@ -121,6 +154,8 @@ export function AdventurePage() {
 
             setEmotionalTone(result.emotionalTone);
 
+            setPlotBeat(result.plotBeat);
+
             setChoices(result.choices);
 
             setStage("objective-reveal");
@@ -158,6 +193,8 @@ export function AdventurePage() {
             setStoryLog(result.storyLog ?? [...storyLog, result.narrative]);
 
             setEmotionalTone(result.emotionalTone);
+
+            setPlotBeat(result.plotBeat);
 
             setChoices(result.choices);
 
@@ -214,7 +251,7 @@ export function AdventurePage() {
 
             <Starfield count={20} />
 
-            <div className="relative z-10 max-w-2xl mx-auto pb-32">
+            <div className="relative z-10 max-w-6xl mx-auto pb-32">
 
                 <button
                     onClick={() => navigate("/dashboard")}
@@ -231,16 +268,6 @@ export function AdventurePage() {
                     <ParchmentCard>
                         <h2 className="font-display text-lg text-ember mb-4">Open a new chapter</h2>
                         <form onSubmit={handleStart} className="flex flex-col gap-4">
-
-                            <label className="flex flex-col gap-1 text-sm">
-                                <span className="text-parchmentDim font-semibold">Where does it begin?</span>
-                                <input
-                                    value={location}
-                                    onChange={event => setLocation(event.target.value)}
-                                    className="bg-night/60 border border-parchmentDim/30 rounded-lg px-3 py-2 text-parchment focus:border-ember outline-none"
-                                    required
-                                />
-                            </label>
 
                             <label className="flex flex-col gap-1 text-sm">
                                 <span className="text-parchmentDim font-semibold">
@@ -312,7 +339,7 @@ export function AdventurePage() {
 
                         {/* ─── Chapter header ─── */}
                         <p className="text-xs uppercase tracking-[0.25em] text-mystic/60 text-center font-display select-none">
-                            Chapter One
+                            {plotBeat && CHAPTER_LABEL_BY_BEAT[plotBeat] ? CHAPTER_LABEL_BY_BEAT[plotBeat] : "Chapter One"}
                         </p>
 
                         {/* ─── Flowing story text — all paragraphs ─── */}
@@ -341,7 +368,6 @@ export function AdventurePage() {
                                                     ? "text-parchment"
                                                     : "text-parchment/75"
                                             }`}
-                                            style={{ maxWidth: "65ch" }}
                                         >
                                             {paragraph}
                                         </motion.p>
@@ -472,7 +498,7 @@ export function AdventurePage() {
                             <div className="absolute inset-0 bg-gradient-to-br from-ember/5 to-mystic/5 pointer-events-none" />
 
                             <p className="text-xs uppercase tracking-[0.25em] text-mystic/60 text-center font-display select-none mb-4 relative">
-                                Chapter One
+                                {plotBeat && CHAPTER_LABEL_BY_BEAT[plotBeat] ? CHAPTER_LABEL_BY_BEAT[plotBeat] : "Chapter One"}
                             </p>
 
                             <div className="relative space-y-5">
@@ -480,7 +506,6 @@ export function AdventurePage() {
                                     <p
                                         key={`end-p-${index}`}
                                         className="font-narrative text-parchment text-lg leading-loose tracking-wide"
-                                        style={{ maxWidth: "65ch" }}
                                     >
                                         {paragraph}
                                     </p>
